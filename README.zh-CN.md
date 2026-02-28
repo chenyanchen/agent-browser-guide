@@ -101,11 +101,13 @@ agent-browser eval 'document.title'
 一条命令通过 CDP 连接到你正在运行的 Chrome——继承所有 Cookie 和登录态。
 
 ```
-AI Agent（Claude Code / Cursor / Codex 等）
+AI Agent（Claude Code / Cursor / Codex / Windsurf / ...）
   └── bash: agent-browser <command>
         └── Chrome DevTools Protocol (CDP)
               └── 你的 Chrome（包含所有 Cookie、扩展、登录态）
 ```
+
+**这是一个通用方案。** agent-browser 是一个 CLI 工具——任何能执行 shell 命令的 AI Agent 都可以使用它。Claude Code、Codex、Cursor、Windsurf、Copilot——配置完全相同。不绑定任何厂商，不需要 SDK 集成。只要你的 Agent 能跑 `bash`，它就能操控你的浏览器。
 
 ## 性能对比
 

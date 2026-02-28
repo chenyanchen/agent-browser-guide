@@ -31,7 +31,9 @@ The fix is one line:
 agent-browser eval 'document.title'
 ```
 
-This connects to your running Chrome via CDP (Chrome DevTools Protocol). Your cookies. Your sessions. Your extensions. Everything just works.
+This connects to your running Chrome via CDP (Chrome DevTools Protocol). Your cookies. Your sessions. Your extensions.
+
+It's a CLI tool — works with ANY agent that can run bash. Claude Code, Codex, Cursor, Windsurf. No vendor lock-in.
 
 ---
 

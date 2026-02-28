@@ -101,11 +101,13 @@ agent-browser eval 'document.title'
 One command connects to your running Chrome via CDP — inheriting all cookies and login sessions.
 
 ```
-AI Agent (Claude Code / Cursor / Codex / etc.)
+AI Agent (Claude Code / Cursor / Codex / Windsurf / ...)
   └── bash: agent-browser <command>
         └── Chrome DevTools Protocol (CDP)
               └── Your Chrome (with all cookies, extensions, login state)
 ```
+
+**This is agent-agnostic.** agent-browser is a CLI tool — any AI agent that can execute shell commands can use it. Claude Code, Codex, Cursor, Windsurf, Copilot — the setup is the same. No vendor lock-in, no SDK integration. If your agent can run `bash`, it can control your browser.
 
 ## Benchmarks
 

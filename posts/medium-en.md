@@ -359,6 +359,8 @@ The insight is simple: **most browser automation tasks don't need vision**. They
 
 If your AI agent regularly interacts with the web -- especially authenticated APIs -- try the CDP approach. The setup takes 5 minutes, and the token savings compound with every action.
 
+And because agent-browser is a CLI tool, this approach is **agent-agnostic**. I use Claude Code, but any AI agent that can execute shell commands — Codex, Cursor, Windsurf, Copilot — gets the same capabilities with the same setup. No SDK, no vendor lock-in. If your agent can run `bash`, it can control your browser via CDP.
+
 The tools are maturing fast. A year ago, giving an AI agent browser access meant Puppeteer scripts and fragile selectors. Today, agent-browser gives you a clean CLI that connects to your real Chrome in one line. The developer experience is already good. The token economics make it a no-brainer for structured, repeatable browser tasks.
 
 Start with one task. Measure the tokens. Compare to your current approach. I think you'll be surprised by the difference.
