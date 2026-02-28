@@ -44,13 +44,13 @@ google-chrome \
 ### macOS (Homebrew)
 
 ```bash
-brew install anthropics/tap/agent-browser
+brew install agent-browser
 ```
 
 ### macOS / Linux (npm)
 
 ```bash
-npm install -g @anthropic-ai/agent-browser
+npm install -g agent-browser && agent-browser install
 ```
 
 ### Verify installation
@@ -59,28 +59,33 @@ npm install -g @anthropic-ai/agent-browser
 agent-browser --version
 ```
 
+## Configure Auto-Connect
+
+```bash
+mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
+{
+  "autoConnect": true
+}
+EOF
+```
+
+With this config, agent-browser automatically connects to your running Chrome. Without it, you'd need to pass `--auto-connect` on every command.
+
 ## Verifying the Connection
 
 With Chrome running and CDP enabled:
 
 ```bash
-agent-browser list-pages
+agent-browser get url
 ```
 
-Expected output:
-
-```
-Page 0: "New Tab" - chrome://newtab/
-Page 1: "Google" - https://www.google.com/
-```
-
-If you see your open tabs, everything is working.
+Expected output: the URL of your current Chrome tab. If you see a URL, everything is working.
 
 ## Quick Smoke Test
 
 ```bash
 # Navigate to a page
-agent-browser navigate 'https://example.com'
+agent-browser open 'https://example.com'
 
 # Read the title
 agent-browser eval 'document.title'

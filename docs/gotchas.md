@@ -13,14 +13,14 @@ Hard-won lessons from using agent-browser in production workflows.
 ```bash
 # You're logged into trade.example.com in Chrome.
 # You navigate to the landing page:
-agent-browser navigate 'https://www.example.com'
+agent-browser open 'https://www.example.com'
 
 # Then try to call the trade API:
 agent-browser eval "fetch('https://trade.example.com/api/portfolio')"
 # ERROR: CORS policy blocks cross-origin request
 
 # Fix: navigate to the API's subdomain first
-agent-browser navigate 'https://trade.example.com'
+agent-browser open 'https://trade.example.com'
 agent-browser eval "fetch('/api/portfolio', { credentials: 'include' })"
 # Works -- same origin, cookies attached
 ```
@@ -41,14 +41,13 @@ agent-browser eval "const x = `hello ${name}`"
 agent-browser eval 'it's broken'
 
 # RIGHT: heredoc with quoted delimiter prevents all interpolation
-agent-browser eval "$(cat <<'JSEOF'
+agent-browser eval --stdin <<'EOF'
 const items = document.querySelectorAll('.item');
 const result = Array.from(items).map(el => {
   return `${el.dataset.id}: ${el.textContent.trim()}`;
 });
 JSON.stringify(result);
-JSEOF
-)"
+EOF
 ```
 
 The `'JSEOF'` (with quotes around the delimiter) prevents the shell from interpreting `${}`, backticks, or any special characters inside the heredoc.
@@ -91,7 +90,7 @@ On Chrome 145+ (the `chrome://inspect` approach), CDP is enabled per-session. Wh
 **In skills:** Always start with a precondition check:
 
 ```bash
-if ! agent-browser list-pages > /dev/null 2>&1; then
+if ! agent-browser get url > /dev/null 2>&1; then
   echo "CDP unavailable. Re-enable at chrome://inspect/#remote-debugging"
   exit 1
 fi
@@ -139,7 +138,7 @@ CDP gives agent-browser **complete control** over your browser:
 
 We tested this thoroughly: once agent-browser connects to a tab, it **locks onto that tab** even if you switch to other tabs or windows. Over 100 seconds of continuous monitoring while actively switching tabs, agent-browser consistently returned the same URL and title.
 
-**When it does break:** If you run `agent-browser close` (which disconnects), the next `--auto-connect` will grab **whichever tab is currently active** — which may not be the one you want.
+**When it does break:** If you run `agent-browser close` (which disconnects), the next auto-connect will grab **whichever tab is currently active** — which may not be the one you want.
 
 **Two solutions:**
 
@@ -199,10 +198,10 @@ agent-browser runs a background daemon to maintain the CDP connection.
 ```bash
 # Restart if something feels wrong
 agent-browser close
-agent-browser --auto-connect get url  # reconnects to active tab
+agent-browser get url  # reconnects to active tab
 ```
 
-## 10. Ref Invalidation After Navigation
+## 9. Ref Invalidation After Navigation
 
 After calling `agent-browser navigate`, any DOM references from previous `eval` calls are invalid.
 
@@ -213,7 +212,7 @@ After calling `agent-browser navigate`, any DOM references from previous `eval` 
 agent-browser eval 'window.__myEl = document.querySelector("#login")'
 
 # Navigate away
-agent-browser navigate 'https://other-page.com'
+agent-browser open 'https://other-page.com'
 
 # This reference is now garbage
 agent-browser eval 'window.__myEl.click()'  # ERROR: stale reference
@@ -221,7 +220,7 @@ agent-browser eval 'window.__myEl.click()'  # ERROR: stale reference
 
 **Rule:** After any navigation, re-query the DOM. Don't cache element references across navigations.
 
-## 11. Large eval Output
+## 10. Large eval Output
 
 agent-browser returns eval results as strings. If your JavaScript returns a huge object (e.g., the entire DOM), it can:
 

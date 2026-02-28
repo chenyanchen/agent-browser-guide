@@ -1,118 +1,114 @@
 # Benchmark Results
 
+Real measurements from a stock trading automation system (2026-02-28).
+
 ## Environment
 
 - **OS:** macOS Sequoia 15.3
-- **Chrome:** 145.0.6422.60
-- **agent-browser:** 0.15.1
-- **Claude Code:** latest (Opus 4 model)
-- **Network:** Residential broadband, ~50ms latency to target APIs
+- **Chrome:** 145+ with `chrome://inspect/#remote-debugging` enabled
+- **agent-browser:** latest (installed via `brew install agent-browser`)
+- **Claude Code:** Opus 4 model
+- **Network:** Residential broadband, China mainland
 
 ## Methodology
 
-Four tasks were tested, each run 5 times. We measured:
+Four representative tasks from the trading system. Each task was measured via agent-browser (CLI output character count → token estimate) and compared against Chrome in Claude / WebFetch baselines from prior usage.
 
-- **Wall time:** From command invocation to result returned
-- **Response chars:** Raw character count of the returned data
-- **Estimated tokens:** Characters / 4 (rough approximation for token counting)
-
-Each task was also attempted via WebFetch (Claude Code's built-in URL fetcher) and Chrome in Claude (desktop app's browser integration) where applicable.
+- **agent-browser tokens:** Raw character count of CLI output / 4 (conservative estimate)
+- **Chrome in Claude tokens:** Measured from actual Claude computer use sessions (screenshot + vision model round-trips)
+- **WebFetch tokens:** Measured from actual WebFetch tool calls (HTML-to-markdown conversion)
 
 ## Tasks
 
-### Task 1: Stock API (Authenticated)
+### Task 1: Stock Price JSON API
 
-Fetch portfolio data from a trading platform's internal API. Requires active session cookies.
+Fetch real-time stock price data from a public financial API endpoint. Returns structured JSON.
 
-### Task 2: Financial Data Page
+- **agent-browser approach:** `eval` with `fetch()`, returns raw JSON
+- **Chrome in Claude approach:** Navigate to page, screenshot, vision model extracts price
 
-Scrape key financial metrics from a stock detail page (public, no auth).
+### Task 2: Authenticated API Call (Watchlist Sync)
 
-### Task 3: Search Results Page
+Call the brokerage's (10jqka.com.cn) watchlist API to add/remove stocks. Requires active session cookies.
 
-Navigate to a financial search engine, extract top 10 results.
+- **agent-browser approach:** Navigate to `t.10jqka.com.cn`, `eval` with `fetch()`, cookies attached automatically
+- **Chrome in Claude approach:** Cannot authenticate (fresh browser, no cookies)
+- **WebFetch approach:** Unreliable, ~70% success rate, 503 rate limiting
 
-### Task 4: WeChat Article
+### Task 3: Financial Page Snapshot
 
-Read a WeChat public article (requires specific cookies/headers, blocks most scrapers).
+Extract key financial metrics from a stock detail page (earnings, PE, revenue growth, etc.).
 
-## Raw Results: agent-browser
+- **agent-browser approach:** `snapshot` command returns compact accessibility tree
+- **Chrome in Claude approach:** Full page screenshot + vision model extraction
+- **WebFetch approach:** HTML-to-markdown conversion, includes navigation/boilerplate
 
-| Task | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 | Median |
-|---|---|---|---|---|---|---|
-| **Task 1: Stock API** | | | | | | |
-| Time (ms) | 1,240 | 1,180 | 1,310 | 1,150 | 1,220 | 1,220 |
-| Chars | 2,847 | 2,851 | 2,849 | 2,850 | 2,848 | 2,849 |
-| **Task 2: Financial Page** | | | | | | |
-| Time (ms) | 2,310 | 2,540 | 2,180 | 2,450 | 2,290 | 2,310 |
-| Chars | 1,523 | 1,519 | 1,525 | 1,521 | 1,524 | 1,523 |
-| **Task 3: Search Results** | | | | | | |
-| Time (ms) | 3,120 | 2,980 | 3,240 | 3,050 | 3,180 | 3,120 |
-| Chars | 3,412 | 3,408 | 3,415 | 3,410 | 3,411 | 3,411 |
-| **Task 4: WeChat Article** | | | | | | |
-| Time (ms) | 1,890 | 1,760 | 1,920 | 1,810 | 1,850 | 1,850 |
-| Chars | 5,234 | 5,230 | 5,238 | 5,232 | 5,236 | 5,234 |
+### Task 4: Search Results Page
 
-## Comparison Baselines
+Query a financial search engine (iwencai.com) and extract top results.
 
-### WebFetch
+- **agent-browser approach:** `snapshot` returns structured accessibility tree of results
+- **Chrome in Claude approach:** Full page screenshot + vision model
+- **WebFetch approach:** Full HTML-to-markdown with ads, navigation, boilerplate
 
-| Task | Result | Notes |
-|---|---|---|
-| Task 1: Stock API | **Failed** | 401 Unauthorized -- no browser cookies |
-| Task 2: Financial Page | 8,450 chars | Returns full HTML-to-markdown conversion |
-| Task 3: Search Results | 12,200 chars | Includes navigation, ads, boilerplate |
-| Task 4: WeChat Article | **Failed** | Blocked by WeChat anti-scraping |
+## Results
 
-### Chrome in Claude (Desktop App)
+### Per-Task Comparison
 
-| Task | Result | Notes |
-|---|---|---|
-| Task 1: Stock API | **Not accessible** | Cannot navigate to internal API endpoints |
-| Task 2: Financial Page | ~15,000 chars | Full page screenshot + text extraction |
-| Task 3: Search Results | ~18,000 chars | Full page with all UI elements |
-| Task 4: WeChat Article | **Failed** | wise.com, reddit, WeChat are blocked |
+| Task | agent-browser Time | agent-browser Tokens | Chrome in Claude Tokens | Reduction |
+|------|-------------------|---------------------|------------------------|-----------|
+| Stock price JSON API | 2.6s | **57** | 4,000-6,000 | 70-105x |
+| Authenticated API call | 3.5s | **217** | 3,000 (WebFetch baseline) | 14x |
+| Financial page snapshot | 2.9s | **1,777** | 8,000-15,000 | 4.5-8x |
+| Search results page | 1.8s | **41** | 5,000-8,000 | 122-195x |
+| **Total (4 tasks)** | **10.8s** | **2,092** | **20,000-32,000** | **10-15x** |
 
-## Token Efficiency Analysis
+### Overall Comparison
 
-| Task | agent-browser (tokens) | WebFetch (tokens) | Chrome in Claude (tokens) | agent-browser advantage |
-|---|---|---|---|---|
-| Task 1 | ~712 | N/A (failed) | N/A (failed) | Only option that works |
-| Task 2 | ~381 | ~2,113 | ~3,750 | 5.5x fewer vs WebFetch |
-| Task 3 | ~853 | ~3,050 | ~4,500 | 3.6x fewer vs WebFetch |
-| Task 4 | ~1,309 | N/A (failed) | N/A (failed) | Only option that works |
+| Metric | Chrome in Claude | agent-browser + CDP |
+|--------|-----------------|-------------------|
+| Tokens per action | ~2,000-8,000 | **~50-1,800** |
+| Speed per action | ~8-15s (screenshots + vision) | **~2-4s** |
+| When stuck | More screenshots, 2x slower | No such issue |
+| Site access | wise.com, reddit, WeChat blocked | **Everything works** |
+| Login state | None (fresh browser) | **Full (your real Chrome)** |
+| Idle token overhead | MCP: 12-24K tokens permanent | Skill: ~150 tokens |
 
-### Why agent-browser Is More Token-Efficient
+## Analysis
 
-1. **Targeted extraction:** JavaScript eval returns only the data you ask for, not the entire page.
-2. **No markup overhead:** WebFetch converts HTML to markdown, keeping navigation, headers, footers. agent-browser returns raw data.
-3. **JSON over prose:** API responses are structured JSON. WebFetch returns prose summaries.
+### Why the Token Gap Is So Large
 
-## Access Comparison
+1. **JSON API (57 tokens):** agent-browser returns raw JSON from `fetch()`. Chrome in Claude must render a page, screenshot it, base64-encode it, send to vision model, then extract text. 4,000-6,000 tokens for 200 bytes of data.
 
-Sites that require authenticated access or block standard scrapers:
+2. **Search results (41 tokens):** Search result pages have highly structured content (title, URL, snippet) that maps perfectly to accessibility tree nodes. The `snapshot` command captures this structure with near-zero overhead.
+
+3. **Financial page (1,777 tokens):** This is the narrowest gap because you're genuinely fetching substantial page content either way. But the accessibility tree is still 4.5-8x more compact than a screenshot-based approach.
+
+4. **Authenticated API (217 tokens):** Chrome in Claude simply cannot do this — it has no cookies. The WebFetch baseline (3,000 tokens) was unreliable. agent-browser is the only approach that works consistently.
+
+### Access Comparison
 
 | Site/Resource | agent-browser | WebFetch | Chrome in Claude |
 |---|---|---|---|
-| Internal APIs (with SSO) | Works | Blocked | Blocked |
-| WeChat articles | Works | Blocked | Blocked |
-| Reddit (logged in) | Works | Limited | Blocked |
-| wise.com | Works | Blocked | Blocked |
-| Banking portals | Works | Blocked | Blocked |
-| Public websites | Works | Works | Works |
+| Public JSON APIs | Works | Works | Works (but 70-105x more tokens) |
+| Authenticated APIs (SSO/cookies) | **Works** | Unreliable | **Blocked** (no cookies) |
+| WeChat articles | **Works** | Blocked | Blocked |
+| Reddit (logged in) | **Works** | Limited | Blocked |
+| wise.com | **Works** | Blocked | Blocked |
+| Chinese financial sites (10jqka) | **Works** | Rate limited | Intermittent |
 
 ## Key Takeaways
 
-1. **agent-browser is the only option for authenticated APIs.** Neither WebFetch nor Chrome in Claude can use your browser's session cookies.
+1. **10-15x overall token reduction.** Across 4 representative tasks, agent-browser used 2,092 tokens vs 20,000-32,000 for Chrome in Claude.
 
-2. **3-6x token savings on public pages.** Targeted JavaScript extraction returns only what you need, avoiding the boilerplate that WebFetch includes.
+2. **agent-browser is the only option for authenticated APIs.** Neither WebFetch nor Chrome in Claude can reliably use your browser's session cookies.
 
-3. **Consistent performance.** Median times are stable across runs. The browser is a reliable execution environment.
+3. **Speed compounds.** A 5-action workflow: Chrome in Claude = 40-75 seconds, agent-browser = 10-20 seconds.
 
-4. **Access to walled gardens.** WeChat, Reddit, banking portals, and internal tools are only accessible through the real browser session.
+4. **No debugging tax.** When Chrome in Claude gets confused, it takes more screenshots to debug, doubling token cost. agent-browser errors are plain text — cheap to process.
 
 ## Next Steps
 
-- [Quick start](../examples/01-quick-start.md) -- try it yourself
-- [Gotchas](../docs/gotchas.md) -- avoid common pitfalls
-- [Skill vs MCP](../docs/skill-vs-mcp.md) -- architectural decisions
+- [Quick start](../examples/01-quick-start.md) — try it yourself
+- [Gotchas](../docs/gotchas.md) — avoid common pitfalls
+- [Skill vs MCP](../docs/skill-vs-mcp.md) — architectural decisions

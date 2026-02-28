@@ -10,31 +10,31 @@ Open Chrome and navigate to:
 chrome://inspect/#remote-debugging
 ```
 
-Click **"Configure..."** if needed, ensure `localhost:9222` is listed. That's it -- no restart required (Chrome 145+).
+Click **"Enable"**. That's it -- no restart required. (Requires Chrome 145+)
 
-## Step 2: Install agent-browser
+## Step 2: Install and Configure
 
 ```bash
-brew install anthropics/tap/agent-browser
-# or
-npm install -g @anthropic-ai/agent-browser
+# macOS
+brew install agent-browser
+
+# or via npm
+npm install -g agent-browser && agent-browser install
+
+# Enable auto-connect (so you don't need --auto-connect on every command)
+mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
+{ "autoConnect": true }
+EOF
 ```
 
 ## Step 3: Verify the Connection
 
 ```bash
-# List all open tabs
-agent-browser list-pages
+# Get the URL of your current Chrome tab
+agent-browser get url
 ```
 
-You should see output like:
-
-```
-Page 0: "Google" - https://www.google.com/
-Page 1: "GitHub" - https://github.com/
-```
-
-If you see your open tabs, you're connected.
+You should see the URL of your current Chrome tab. If you see a URL, you're connected.
 
 ## Your First Commands
 
@@ -61,7 +61,7 @@ https://www.google.com/
 ### Navigate to a page and extract content
 
 ```bash
-agent-browser navigate 'https://example.com'
+agent-browser open 'https://example.com'
 agent-browser eval 'document.querySelector("h1").textContent'
 ```
 
@@ -72,11 +72,10 @@ Example Domain
 ### Run a multi-line script
 
 ```bash
-agent-browser eval "$(cat <<'JSEOF'
+agent-browser eval --stdin <<'EOF'
 const links = Array.from(document.querySelectorAll('a'));
 links.map(a => `${a.textContent.trim()} -> ${a.href}`).join('\n');
-JSEOF
-)"
+EOF
 ```
 
 ## What Just Happened?

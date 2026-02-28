@@ -34,7 +34,7 @@ Syncs the screened stock list to the trading platform's browser-based watchlist.
 Before any browser operation, verify CDP is available:
 
 \```bash
-agent-browser list-pages > /dev/null 2>&1
+agent-browser get url > /dev/null 2>&1
 if [ $? -ne 0 ]; then
   echo "ERROR: Chrome CDP not available."
   echo "Open chrome://inspect/#remote-debugging in Chrome."
@@ -47,13 +47,13 @@ fi
 ### 1. Navigate to the trading platform
 
 \```bash
-agent-browser navigate 'https://trade.example.com/watchlist'
+agent-browser open 'https://trade.example.com/watchlist'
 \```
 
 ### 2. Read the current watchlist
 
 \```bash
-agent-browser eval "$(cat <<'JSEOF'
+agent-browser eval --stdin <<'EOF'
 (async () => {
   const resp = await fetch('/api/watchlist/list', {
     credentials: 'include'
@@ -61,8 +61,7 @@ agent-browser eval "$(cat <<'JSEOF'
   if (!resp.ok) return JSON.stringify({ error: resp.status });
   return JSON.stringify(await resp.json());
 })();
-JSEOF
-)"
+EOF
 \```
 
 ### 3. Diff and update
@@ -70,7 +69,7 @@ JSEOF
 Compare the API response with the desired stock list. Add missing stocks, remove extras.
 
 \```bash
-agent-browser eval "$(cat <<'JSEOF'
+agent-browser eval --stdin <<'EOF'
 (async () => {
   const resp = await fetch('/api/watchlist/add', {
     method: 'POST',
@@ -80,8 +79,7 @@ agent-browser eval "$(cat <<'JSEOF'
   });
   return JSON.stringify({ ok: resp.ok, status: resp.status });
 })();
-JSEOF
-)"
+EOF
 \```
 
 ### 4. Verify
@@ -119,7 +117,7 @@ allowed-tools:
 Always check CDP availability before doing browser work:
 
 ```bash
-if ! agent-browser list-pages > /dev/null 2>&1; then
+if ! agent-browser get url > /dev/null 2>&1; then
   echo "Chrome CDP not available. Enable at chrome://inspect/#remote-debugging"
   exit 1
 fi

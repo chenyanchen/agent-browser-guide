@@ -27,7 +27,7 @@ The problem with "Chrome in Claude" (computer use / MCP browser):
 The fix is one line:
 
 ```
-agent-browser --auto-connect eval 'document.title'
+agent-browser eval 'document.title'
 ```
 
 This connects to your running Chrome via CDP (Chrome DevTools Protocol). Your cookies. Your sessions. Your extensions. Everything just works.

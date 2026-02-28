@@ -6,7 +6,7 @@
 
 ## The Problem With AI Browser Automation
 
-I build a stock trading automation system with Claude Code. Every morning, it analyzes overnight market data, generates pre-market plans, executes intraday trades, and runs post-market reviews. Eight Claude Code skills orchestrate the entire daily workflow.
+I built a stock trading automation system with Claude Code. Every morning, it analyzes overnight market data, generates pre-market plans, executes intraday trades, and runs post-market reviews. Eight Claude Code skills orchestrate the entire daily workflow.
 
 One of those skills syncs my watchlist to my brokerage account. Simple enough: call an authenticated API to add or remove stock symbols. But here is where things went sideways.
 
@@ -44,7 +44,7 @@ BEFORE (Chrome in Claude):
   Cost: 2,000-8,000 tokens per action, 8-15s
 
 AFTER (agent-browser + CDP):
-  Agent → Bash: agent-browser --auto-connect eval '...'
+  Agent → Bash: agent-browser eval '...'
        → CDP → Your Chrome → JSON response
   Cost: 50-200 tokens per action, 2-4s
 ```
@@ -97,7 +97,7 @@ Click **"Enable"**. That's it. No restart needed. This requires Chrome 145+.
 
 One caveat: after restarting Chrome, you need to re-enable this. Chrome intentionally does not persist CDP access for security reasons.
 
-### Step 2: Install agent-browser
+### Step 2: Install and Configure
 
 ```bash
 # macOS
@@ -105,12 +105,17 @@ brew install agent-browser
 
 # or via npm
 npm install -g agent-browser && agent-browser install
+
+# Enable auto-connect (so you don't need --auto-connect on every command)
+mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
+{ "autoConnect": true }
+EOF
 ```
 
 ### Step 3: Verify Connection
 
 ```bash
-agent-browser --auto-connect get url
+agent-browser get url
 # Should print the URL of your current Chrome tab
 ```
 
@@ -118,11 +123,11 @@ agent-browser --auto-connect get url
 
 ```bash
 # Navigate to a site
-agent-browser --auto-connect open "https://news.ycombinator.com"
-agent-browser --auto-connect wait --load networkidle
+agent-browser open "https://news.ycombinator.com"
+agent-browser wait --load networkidle
 
 # Get a compact accessibility tree (not a screenshot!)
-agent-browser --auto-connect snapshot
+agent-browser snapshot
 ```
 
 You should see something like:
@@ -142,11 +147,11 @@ This is where the magic happens. Navigate to a site you're already logged into, 
 
 ```bash
 # Navigate to the API's domain (required for same-origin cookies)
-agent-browser --auto-connect open "https://api.example.com/"
-agent-browser --auto-connect wait 2000
+agent-browser open "https://api.example.com/"
+agent-browser wait 2000
 
 # Call the authenticated API -- cookies are sent automatically
-agent-browser --auto-connect eval --stdin <<'EOF'
+agent-browser eval --stdin <<'EOF'
 fetch("https://api.example.com/user/data")
   .then(r => r.json())
   .then(d => JSON.stringify(d))
@@ -177,11 +182,11 @@ The skill body (written in markdown) contains the instructions:
 ## Steps
 
 1. Navigate to the brokerage domain (required for CORS):
-   agent-browser --auto-connect open "https://t.10jqka.com.cn/"
-   agent-browser --auto-connect wait 2000
+   agent-browser open "https://t.10jqka.com.cn/"
+   agent-browser wait 2000
 
 2. Call the authenticated API:
-   agent-browser --auto-connect eval --stdin <<'EOF'
+   agent-browser eval --stdin <<'EOF'
    fetch("https://t.10jqka.com.cn/api/watchlist/add", {
      method: "POST",
      headers: { "Content-Type": "application/json" },
@@ -199,7 +204,7 @@ The real power emerges when skills chain together:
 ```
 /stock-trade (records trade in PostgreSQL)
   → /stock-watchlist (syncs to brokerage watchlist)
-    → agent-browser --auto-connect (calls authenticated API)
+    → agent-browser(calls authenticated API)
       → Chrome CDP → Broker API (with user's cookies)
 ```
 
@@ -236,7 +241,7 @@ MCP tool calls require structured input/output with JSON schemas. A single `eval
 That's ~100-200 tokens just for the call structure. The Skill approach uses bash one-liners:
 
 ```bash
-agent-browser --auto-connect eval 'document.title'
+agent-browser eval 'document.title'
 ```
 
 ~50 tokens. And you can chain commands with `&&` to reduce round-trips further.
@@ -274,8 +279,8 @@ This one cost me two hours. My brokerage's API lives at `t.10jqka.com.cn`, but t
 
 ```bash
 # WRONG
-agent-browser --auto-connect open "https://www.10jqka.com.cn"
-agent-browser --auto-connect eval 'fetch("https://t.10jqka.com.cn/api/data")'
+agent-browser open "https://www.10jqka.com.cn"
+agent-browser eval 'fetch("https://t.10jqka.com.cn/api/data")'
 # TypeError: Failed to fetch
 ```
 
@@ -283,8 +288,8 @@ Same-origin policy. The browser treats `www.` and `t.` as different origins. The
 
 ```bash
 # RIGHT
-agent-browser --auto-connect open "https://t.10jqka.com.cn/"
-agent-browser --auto-connect eval 'fetch("https://t.10jqka.com.cn/api/data")'
+agent-browser open "https://t.10jqka.com.cn/"
+agent-browser eval 'fetch("https://t.10jqka.com.cn/api/data")'
 # Works!
 ```
 
@@ -296,10 +301,10 @@ JavaScript is full of characters that shells love to interpret: `$`, backticks, 
 
 ```bash
 # WRONG — shell expands $, !, backticks
-agent-browser --auto-connect eval "fetch(`https://api.com/${path}`)"
+agent-browser eval "fetch(`https://api.com/${path}`)"
 
 # RIGHT — heredoc bypasses shell
-agent-browser --auto-connect eval --stdin <<'EOF'
+agent-browser eval --stdin <<'EOF'
 fetch(`https://api.com/${path}`)
 EOF
 ```
@@ -311,9 +316,9 @@ The `<<'EOF'` (with quotes around EOF) is critical. Without quotes, the shell st
 When chaining multiple API calls, add explicit delays:
 
 ```bash
-agent-browser --auto-connect eval '...'  # Call 1
-agent-browser --auto-connect wait 2000    # Wait 2s
-agent-browser --auto-connect eval '...'  # Call 2
+agent-browser eval '...'  # Call 1
+agent-browser wait 2000    # Wait 2s
+agent-browser eval '...'  # Call 2
 ```
 
 Without delays, rapid-fire requests can trigger rate limiting on the target API, leading to 429 errors or temporary bans.
@@ -334,7 +339,7 @@ When agent-browser commands fail (network timeout, element not found, API error)
 In practice, I wrap critical agent-browser calls in bash conditionals:
 
 ```bash
-result=$(agent-browser --auto-connect eval --stdin <<'EOF'
+result=$(agent-browser eval --stdin <<'EOF'
 fetch("https://api.example.com/data")
   .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
   .then(d => JSON.stringify(d))

@@ -23,14 +23,14 @@ And when things go wrong? The agent takes more screenshots to debug, doubling th
 ## The Solution
 
 ```bash
-agent-browser --auto-connect eval 'document.title'
+agent-browser eval 'document.title'
 ```
 
 One line. Connects to your running Chrome via CDP. Your cookies. Your login sessions. Everything just works.
 
 ```
 AI Agent (Claude Code / Cursor / Codex / etc.)
-  └── bash: agent-browser --auto-connect <command>
+  └── bash: agent-browser <command>
         └── Chrome DevTools Protocol (CDP)
               └── Your Chrome (with all cookies, extensions, login state)
 ```
@@ -84,10 +84,22 @@ brew install agent-browser
 npm install -g agent-browser && agent-browser install
 ```
 
-### 3. Verify Connection
+### 3. Configure Auto-Connect
 
 ```bash
-agent-browser --auto-connect get url
+mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
+{
+  "autoConnect": true
+}
+EOF
+```
+
+This tells agent-browser to automatically connect to your running Chrome. Without this, you'd need to pass `--auto-connect` on every command.
+
+### 4. Verify Connection
+
+```bash
+agent-browser get url
 # Should print the URL of your current Chrome tab
 ```
 
@@ -101,11 +113,11 @@ Use your browser's cookies to call authenticated APIs directly:
 
 ```bash
 # Navigate to the API's domain first (for same-origin cookies)
-agent-browser --auto-connect open "https://api.example.com/"
-agent-browser --auto-connect wait 2000
+agent-browser open "https://api.example.com/"
+agent-browser wait 2000
 
 # Call the API — cookies are sent automatically
-agent-browser --auto-connect eval --stdin <<'EOF'
+agent-browser eval --stdin <<'EOF'
 fetch("https://api.example.com/user/watchlist")
   .then(r => r.json())
   .then(d => JSON.stringify(d))
@@ -119,16 +131,16 @@ EOF
 For pages that need clicking, filling forms, or reading content:
 
 ```bash
-agent-browser --auto-connect open "https://example.com/dashboard"
-agent-browser --auto-connect wait --load networkidle
-agent-browser --auto-connect snapshot -i
+agent-browser open "https://example.com/dashboard"
+agent-browser wait --load networkidle
+agent-browser snapshot -i
 # Output:
 # - button "Sign Out" [ref=e1]
 # - link "Settings" [ref=e2]
 # - textbox "Search" [ref=e3]
 
-agent-browser --auto-connect fill @e3 "query"
-agent-browser --auto-connect press Enter
+agent-browser fill @e3 "query"
+agent-browser press Enter
 ```
 
 **Output:** Compact accessibility tree with refs. ~200-2,000 tokens per page (vs 8,000-15,000 for WebFetch).
@@ -156,7 +168,7 @@ Chain multiple skills for complex workflows:
 ```
 /stock-trade (records trade in PostgreSQL)
   → /stock-watchlist (syncs to brokerage watchlist)
-    → agent-browser --auto-connect (calls authenticated API)
+    → agent-browser(calls authenticated API)
       → Chrome CDP → Broker API (with user's cookies)
 ```
 
@@ -170,13 +182,13 @@ APIs only receive cookies from the **same origin**. If the API is on `t.example.
 
 ```bash
 # WRONG — CORS failure
-agent-browser --auto-connect open "https://www.example.com"
-agent-browser --auto-connect eval 'fetch("https://t.example.com/api/data")'
+agent-browser open "https://www.example.com"
+agent-browser eval 'fetch("https://t.example.com/api/data")'
 # TypeError: Failed to fetch
 
 # RIGHT — same origin
-agent-browser --auto-connect open "https://t.example.com/"
-agent-browser --auto-connect eval 'fetch("https://t.example.com/api/data")'
+agent-browser open "https://t.example.com/"
+agent-browser eval 'fetch("https://t.example.com/api/data")'
 # Works!
 ```
 
@@ -190,10 +202,10 @@ Use `<<'EOF'` (single-quoted heredoc) to avoid shell interpretation of your Java
 
 ```bash
 # WRONG — shell expands $, !, backticks
-agent-browser --auto-connect eval "fetch(`https://api.com/${path}`)"
+agent-browser eval "fetch(`https://api.com/${path}`)"
 
 # RIGHT — heredoc bypasses shell
-agent-browser --auto-connect eval --stdin <<'EOF'
+agent-browser eval --stdin <<'EOF'
 fetch(`https://api.com/${path}`)
 EOF
 ```
@@ -203,9 +215,9 @@ EOF
 Add delays between rapid API calls:
 
 ```bash
-agent-browser --auto-connect eval '...'  # Call 1
-agent-browser --auto-connect wait 2000    # Wait 2s
-agent-browser --auto-connect eval '...'  # Call 2
+agent-browser eval '...'  # Call 1
+agent-browser wait 2000    # Wait 2s
+agent-browser eval '...'  # Call 2
 ```
 
 ### Tab Contention (Agent vs Human)

@@ -15,7 +15,7 @@ Suppose you use a financial platform at `trade.example.com` and need to pull you
 ### Step 1: Navigate to the correct subdomain
 
 ```bash
-agent-browser navigate 'https://trade.example.com'
+agent-browser open 'https://trade.example.com'
 ```
 
 **This step is critical.** The browser only sends cookies for the current origin. If you try to `fetch()` from `google.com`, your `trade.example.com` cookies won't be attached.
@@ -23,7 +23,7 @@ agent-browser navigate 'https://trade.example.com'
 ### Step 2: Call the API
 
 ```bash
-agent-browser eval "$(cat <<'JSEOF'
+agent-browser eval --stdin <<'EOF'
 (async () => {
   const resp = await fetch('https://trade.example.com/api/v1/watchlist', {
     method: 'GET',
@@ -42,8 +42,7 @@ agent-browser eval "$(cat <<'JSEOF'
   const data = await resp.json();
   return JSON.stringify(data, null, 2);
 })();
-JSEOF
-)"
+EOF
 ```
 
 ### Step 3: Use the data
@@ -67,11 +66,11 @@ If you call an API on `api.example.com` while navigated to `www.example.com`, yo
 
 ```bash
 # Wrong: navigated to www, calling api
-agent-browser navigate 'https://www.example.com'
+agent-browser open 'https://www.example.com'
 agent-browser eval "fetch('https://api.example.com/data')"  # CORS error
 
 # Right: navigate to the API's subdomain first
-agent-browser navigate 'https://api.example.com'
+agent-browser open 'https://api.example.com'
 agent-browser eval "fetch('https://api.example.com/data')"  # Works
 ```
 
@@ -82,7 +81,7 @@ agent-browser eval "fetch('https://api.example.com/data')"  # Works
 Many internal APIs rate-limit aggressively. Build in retry logic:
 
 ```bash
-agent-browser eval "$(cat <<'JSEOF'
+agent-browser eval --stdin <<'EOF'
 (async () => {
   const maxRetries = 3;
   for (let i = 0; i < maxRetries; i++) {
@@ -99,8 +98,7 @@ agent-browser eval "$(cat <<'JSEOF'
   }
   return JSON.stringify({ error: 'rate_limited', message: 'Max retries exceeded' });
 })();
-JSEOF
-)"
+EOF
 ```
 
 ### Auth Failures (401 / 403)
@@ -109,7 +107,7 @@ If you get a 401, your session has expired. The fix is manual -- log in again in
 
 ```bash
 # Check if we're still authenticated
-agent-browser eval "$(cat <<'JSEOF'
+agent-browser eval --stdin <<'EOF'
 (async () => {
   const resp = await fetch('/api/v1/me');
   if (resp.status === 401) {
@@ -117,8 +115,7 @@ agent-browser eval "$(cat <<'JSEOF'
   }
   return JSON.stringify(await resp.json());
 })();
-JSEOF
-)"
+EOF
 ```
 
 ## When to Use This vs. Regular API Keys
