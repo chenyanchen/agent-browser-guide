@@ -208,6 +208,14 @@ agent-browser --auto-connect wait 2000    # Wait 2s
 agent-browser --auto-connect eval '...'  # Call 2
 ```
 
+### Tab Contention (Agent vs Human)
+
+You and the agent share the same Chrome — will you fight over tabs? **No.** Once agent-browser connects to a tab, it locks onto it. You can freely use other tabs.
+
+Rules: don't close the agent's tab, don't navigate it manually, and avoid `agent-browser close` mid-workflow. Everything else is fine.
+
+For heavy usage, consider a [dedicated Chrome profile](docs/gotchas.md#7-tab-contention-agent-vs-human).
+
 ### Security
 
 CDP gives **full access** to your browser — all tabs, all cookies, all localStorage. Only use this on your own machine, and only log into sites you need for automation in the CDP-enabled Chrome session.

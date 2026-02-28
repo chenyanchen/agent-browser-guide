@@ -208,6 +208,14 @@ agent-browser --auto-connect wait 2000    # 等 2 秒
 agent-browser --auto-connect eval '...'  # 调用 2
 ```
 
+### Tab 争用（Agent vs 人类）
+
+你和 agent 共用同一个 Chrome——会互相干扰吗？**不会。** agent-browser 连接到某个 tab 后会锁定它，你可以自由使用其他 tab。
+
+规则：不要关闭 agent 的 tab，不要手动操作它，避免在工作流中途执行 `agent-browser close`。除此之外，一切正常。
+
+重度使用可以考虑[独立 Chrome Profile](docs/gotchas.md#7-tab-contention-agent-vs-human)。
+
 ### 安全
 
 CDP 给予浏览器的**完全访问权限**——所有标签页、所有 Cookie、所有 localStorage。仅在个人电脑上使用，且只在需要自动化的网站上保持登录。

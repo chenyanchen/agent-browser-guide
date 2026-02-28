@@ -131,27 +131,78 @@ CDP gives agent-browser **complete control** over your browser:
 - Don't run untrusted skills with agent-browser access
 - Remember: anyone on localhost can connect to CDP when it's enabled
 
-## 7. agent-browser Daemon Lifecycle
+## 7. Tab Contention: Agent vs Human
 
-agent-browser may keep a background process running to maintain the CDP connection.
+**The problem:** You and the agent share the same Chrome. If the agent is working in one tab and you switch to another, does the agent get confused?
 
-**Problem:** Stale connections can cause weird behavior -- commands hang, return data from wrong tabs, or fail silently.
+**The answer: No, as long as you don't close the agent's tab.**
 
-**Best practices:**
-- Close the daemon when you're done with browser automation
-- If commands behave oddly, restart the daemon
-- In skills, don't assume the daemon state from a previous session
+We tested this thoroughly: once agent-browser connects to a tab, it **locks onto that tab** even if you switch to other tabs or windows. Over 100 seconds of continuous monitoring while actively switching tabs, agent-browser consistently returned the same URL and title.
 
-```bash
-# Check if daemon is running
-agent-browser status
+**When it does break:** If you run `agent-browser close` (which disconnects), the next `--auto-connect` will grab **whichever tab is currently active** — which may not be the one you want.
 
-# Restart if needed
-agent-browser close
-agent-browser list-pages  # reconnects
+**Two solutions:**
+
+**Option A: Don't touch the agent's tab** (Recommended)
+
+Simply leave the agent's tab alone. Use other tabs normally. The agent maintains its connection to its tab regardless of what you do in other tabs.
+
+```
+Your Chrome window:
+  [Tab 1: Agent's tab — don't close this]  [Tab 2: Your browsing]  [Tab 3: ...]
+                ↑                                    ↑
+    agent-browser works here              You browse freely here
 ```
 
-## 8. Ref Invalidation After Navigation
+Rules:
+- Don't close the agent's tab
+- Don't navigate the agent's tab manually
+- Avoid `agent-browser close` mid-workflow
+- Everything else is fine — new tabs, other windows, no conflict
+
+**Option B: Dedicated Chrome Profile** (For heavy usage)
+
+Launch a separate Chrome instance on a fixed CDP port:
+
+```bash
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+  --remote-debugging-port=9222 \
+  --user-data-dir="$HOME/.chrome-agent" \
+  --no-first-run
+```
+
+Then configure agent-browser to use this port:
+
+```json
+// ~/.agent-browser/config.json
+{ "cdp": 9222 }
+```
+
+Trade-offs:
+- Complete isolation — you can't accidentally interfere
+- But you need to **re-login** to all sites in the new profile
+- Accounts with single-session limits will log you out of your main Chrome
+
+**Our recommendation:** Start with Option A. It works for 95% of use cases. Only switch to Option B if you're running long, unattended automations where you can't guarantee you won't interact with the agent's tab.
+
+## 8. agent-browser Daemon Lifecycle
+
+agent-browser runs a background daemon to maintain the CDP connection.
+
+**Key insight from testing:** The daemon holds onto its connected tab. This is what makes [tab contention](#7-tab-contention-agent-vs-human) a non-issue — but it also means stale daemons can cause problems.
+
+**Best practices:**
+- Run `agent-browser close` when you're done with browser automation
+- If commands behave oddly, close and reconnect
+- In skills, don't assume daemon state from a previous session
+
+```bash
+# Restart if something feels wrong
+agent-browser close
+agent-browser --auto-connect get url  # reconnects to active tab
+```
+
+## 10. Ref Invalidation After Navigation
 
 After calling `agent-browser navigate`, any DOM references from previous `eval` calls are invalid.
 
@@ -170,7 +221,7 @@ agent-browser eval 'window.__myEl.click()'  # ERROR: stale reference
 
 **Rule:** After any navigation, re-query the DOM. Don't cache element references across navigations.
 
-## 9. Large eval Output
+## 11. Large eval Output
 
 agent-browser returns eval results as strings. If your JavaScript returns a huge object (e.g., the entire DOM), it can:
 
