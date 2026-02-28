@@ -13,9 +13,9 @@ No restart needed. Just:
 
 1. Open Chrome
 2. Navigate to `chrome://inspect/#remote-debugging`
-3. Done
+3. Check **"Allow remote debugging for this browser instance"**
 
-Chrome now exposes CDP on `localhost:9222` while this page is active. You can close the tab -- CDP stays enabled until Chrome restarts.
+Chrome now exposes CDP on `localhost:9222`. CDP stays enabled until Chrome restarts.
 
 **Note:** After a Chrome restart, you must re-visit `chrome://inspect/#remote-debugging` to re-enable CDP.
 
@@ -61,6 +61,8 @@ agent-browser --version
 
 ## Configure Auto-Connect
 
+By default, agent-browser launches a new headless browser. If you need your browser's cookies and login sessions (authenticated APIs, sites that block automation), configure auto-connect to use your running Chrome instead:
+
 ```bash
 mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
 {
@@ -69,7 +71,7 @@ mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
 EOF
 ```
 
-With this config, agent-browser automatically connects to your running Chrome. Without it, you'd need to pass `--auto-connect` on every command.
+With this config, all `agent-browser` commands automatically connect to your running Chrome.
 
 ## Verifying the Connection
 

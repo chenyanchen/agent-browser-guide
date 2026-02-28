@@ -1,8 +1,18 @@
 # Quick Start: Hello World with agent-browser
 
-Get Claude Code controlling your browser in 3 steps.
+Get Claude Code controlling your browser in 4 steps.
 
-## Step 1: Enable Chrome DevTools Protocol (CDP)
+## What
+
+Connect agent-browser to your running Chrome via CDP, so AI agents inherit your cookies, login sessions, and extensions.
+
+## Why
+
+By default, agent-browser launches a new headless browser — no cookies, no login state. That's fine for public pages. But if your agent needs authenticated APIs, restricted sites (WeChat, Reddit, wise.com), or internal tools behind SSO — you need to connect to your **real Chrome**.
+
+## How
+
+### Step 1: Enable Chrome DevTools Protocol (CDP)
 
 Open Chrome and navigate to:
 
@@ -10,9 +20,9 @@ Open Chrome and navigate to:
 chrome://inspect/#remote-debugging
 ```
 
-Click **"Enable"**. That's it -- no restart required. (Requires Chrome 145+)
+Check **"Allow remote debugging for this browser instance"**. No restart required. (Chrome 145+)
 
-## Step 2: Install and Configure
+### Step 2: Install agent-browser
 
 ```bash
 # macOS
@@ -20,17 +30,21 @@ brew install agent-browser
 
 # or via npm
 npm install -g agent-browser && agent-browser install
+```
 
-# Enable auto-connect (so you don't need --auto-connect on every command)
+### Step 3: Configure Auto-Connect
+
+```bash
 mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
 { "autoConnect": true }
 EOF
 ```
 
-## Step 3: Verify the Connection
+This tells agent-browser to connect to your running Chrome instead of launching a headless instance.
+
+### Step 4: Verify
 
 ```bash
-# Get the URL of your current Chrome tab
 agent-browser get url
 ```
 

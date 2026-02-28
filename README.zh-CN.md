@@ -64,7 +64,24 @@ AI Agent（Claude Code / Cursor / Codex 等）
 
 ## 快速开始
 
-### 1. 启用 Chrome 远程调试
+### 做什么
+
+将 agent-browser 连接到你正在运行的 Chrome，让 AI Agent 继承你浏览器的 Cookie、登录态和扩展。
+
+### 为什么
+
+默认情况下，agent-browser 会启动一个**全新的无头浏览器**——没有 Cookie、没有登录态，和 Chrome in Claude 一样。访问公开页面没问题。
+
+但如果你的 Agent 需要：
+- **调用带鉴权的 API**（Cookie、SSO、内部工具）
+- **访问拦截自动化浏览器的网站**（微信公众号、Reddit、wise.com）
+- **操作公司内网系统**
+
+……你需要连接到你**真实的 Chrome**。下面的配置就是做这件事。
+
+### 怎么做
+
+#### 1. 启用 Chrome 远程调试
 
 在 Chrome 地址栏输入：
 
@@ -72,9 +89,9 @@ AI Agent（Claude Code / Cursor / Codex 等）
 chrome://inspect/#remote-debugging
 ```
 
-点击 **"Enable"**。完成。不需要重启 Chrome。（需要 Chrome 145+）
+勾选 **"Allow remote debugging for this browser instance"**。不需要重启 Chrome。（需要 Chrome 145+）
 
-### 2. 安装 agent-browser
+#### 2. 安装 agent-browser
 
 ```bash
 # macOS
@@ -84,7 +101,7 @@ brew install agent-browser
 npm install -g agent-browser && agent-browser install
 ```
 
-### 3. 配置自动连接
+#### 3. 配置自动连接
 
 ```bash
 mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
@@ -94,9 +111,9 @@ mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
 EOF
 ```
 
-配置后 agent-browser 会自动连接到正在运行的 Chrome，无需每次都加 `--auto-connect` 参数。
+配置后 agent-browser 会连接你正在运行的 Chrome，而不是启动无头浏览器。
 
-### 4. 验证连接
+#### 4. 验证
 
 ```bash
 agent-browser get url

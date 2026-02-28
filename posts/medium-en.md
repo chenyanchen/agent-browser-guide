@@ -93,7 +93,7 @@ In your Chrome address bar, go to:
 chrome://inspect/#remote-debugging
 ```
 
-Click **"Enable"**. That's it. No restart needed. This requires Chrome 145+.
+Check **"Allow remote debugging for this browser instance"**. No restart needed. This requires Chrome 145+.
 
 One caveat: after restarting Chrome, you need to re-enable this. Chrome intentionally does not persist CDP access for security reasons.
 
@@ -106,7 +106,7 @@ brew install agent-browser
 # or via npm
 npm install -g agent-browser && agent-browser install
 
-# Enable auto-connect (so you don't need --auto-connect on every command)
+# Connect to your real Chrome instead of launching headless
 mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
 { "autoConnect": true }
 EOF

@@ -78,7 +78,7 @@ agent-browser eval 'document.title'
 chrome://inspect/#remote-debugging
 ```
 
-点击 **"Enable"**。完成。不需要重启 Chrome。（需要 Chrome 145+）
+勾选 **"Allow remote debugging for this browser instance"**。不需要重启 Chrome。（需要 Chrome 145+）
 
 **第二步：安装并配置**
 
@@ -89,7 +89,7 @@ brew install agent-browser
 # 或用 npm
 npm install -g agent-browser && agent-browser install
 
-# 配置自动连接（免去每次加 --auto-connect 参数）
+# 连接你的真实 Chrome（而不是启动无头浏览器）
 mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
 { "autoConnect": true }
 EOF

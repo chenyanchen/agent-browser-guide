@@ -64,7 +64,24 @@ Real measurements from a stock trading automation system (2026-02-28):
 
 ## Quick Start
 
-### 1. Enable Chrome Remote Debugging
+### What
+
+Connect agent-browser to your running Chrome via CDP, so AI agents inherit your browser's cookies, login sessions, and extensions.
+
+### Why
+
+By default, agent-browser launches a **new headless browser** — no cookies, no login state, just like Chrome in Claude. That's fine for public pages.
+
+But if your agent needs to:
+- **Call authenticated APIs** using your browser's cookies and SSO sessions
+- **Access restricted sites** that block automated browsers (WeChat, Reddit, wise.com)
+- **Interact with internal tools** behind corporate authentication
+
+...you need to connect to your **real Chrome**. That's what this setup does.
+
+### How
+
+#### 1. Enable Chrome Remote Debugging
 
 In your Chrome address bar, go to:
 
@@ -72,9 +89,9 @@ In your Chrome address bar, go to:
 chrome://inspect/#remote-debugging
 ```
 
-Click **"Enable"**. That's it. No restart needed. (Requires Chrome 145+)
+Check **"Allow remote debugging for this browser instance"**. No restart needed. (Chrome 145+)
 
-### 2. Install agent-browser
+#### 2. Install agent-browser
 
 ```bash
 # macOS
@@ -84,7 +101,7 @@ brew install agent-browser
 npm install -g agent-browser && agent-browser install
 ```
 
-### 3. Configure Auto-Connect
+#### 3. Configure Auto-Connect
 
 ```bash
 mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
@@ -94,9 +111,9 @@ mkdir -p ~/.agent-browser && cat > ~/.agent-browser/config.json << 'EOF'
 EOF
 ```
 
-This tells agent-browser to automatically connect to your running Chrome. Without this, you'd need to pass `--auto-connect` on every command.
+This tells agent-browser to connect to your running Chrome instead of launching a headless instance.
 
-### 4. Verify Connection
+#### 4. Verify
 
 ```bash
 agent-browser get url
