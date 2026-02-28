@@ -18,20 +18,20 @@
 
 八个 Claude Code Skill 编排整个流程。其中，`/stock-watchlist` 负责把交易信号同步到券商自选股。逻辑很简单：调一个带鉴权的 API，添加或删除股票代码。
 
-问题是——虽然 Claude in Chrome 能访问浏览器的登录态，但截图驱动的机制让每次操作都很贵、很慢。
+问题是——虽然 Claude in Chrome 能访问浏览器的登录态，但视觉模型的介入让操作成本偏高。
 
 ## 2. 现有方案的痛点
 
 ### Claude in Chrome 的两大问题
 
-Claude in Chrome 连接的是你的真实 Chrome——有 Cookie、有登录态。但截图驱动的机制带来两个问题：
+Claude in Chrome 连接的是你的真实 Chrome——有 Cookie、有登录态。它优先通过 DOM 和无障碍树操作页面，无法直接操作时才回退到截图。但视觉模型的介入仍然带来额外开销：
 
 | 问题 | 具体表现 |
 |------|---------|
-| **截图驱动** | 每次操作：渲染页面 → 截图 → Base64 编码 → 视觉模型识别 → 推理下一步。一次点击消耗 2,000-8,000 Token，耗时 8-15 秒 |
+| **视觉模型开销** | 当回退到截图时，每次往返涉及渲染、Base64 编码和视觉模型推理——增加显著的 Token 消耗和延迟 |
 | **访问受限** | 部分网站在自动化模式下仍然被拦截或行为异常：wise.com、reddit.com、mp.weixin.qq.com 等 |
 
-更要命的是错误恢复：页面没加载出来？Agent 多截几张图来排查，Token 和时间翻倍。
+更要命的是错误恢复：页面没加载出来？Agent 多截几张图来排查，Token 和时间成倍增加。
 
 我用 WebFetch 也试过——带 Cookie 调 API。结果是 503 限流、3,000 Token 一次调用、成功率不到 70%。
 
@@ -60,8 +60,8 @@ agent-browser eval 'document.title'
 
 ```
 之前（Claude in Chrome）：
-  Agent → 你的 Chrome → 截图 → Base64 → 视觉模型 → 推理
-  成本：每次操作 2,000-8,000 Token，8-15 秒
+  Agent → 你的 Chrome → DOM/无障碍树 + 截图回退 → 视觉模型
+  成本：视觉模型介入时 Token 开销显著增加
 
 之后（agent-browser + CDP）：
   Agent → Bash: agent-browser eval '...'
@@ -126,11 +126,11 @@ agent-browser get url
 | 卡住时 | 更多截图，成本翻倍 | 返回错误文本，开销极小 |
 | 网站访问 | wise.com、reddit、微信被拦截 | 所有测试站点均可访问 |
 | Cookie / 登录态 | ✅ 有（你的 Chrome） | ✅ 有（通过 CDP 连接你的 Chrome） |
-| 工作机制 | 截图 → 视觉模型 | JavaScript eval / 无障碍树 |
+| 工作机制 | DOM + 无障碍树，截图回退 | JavaScript eval / 无障碍树 |
 
 几个值得注意的点：
 
-- **JSON API 场景差距最大**：只需要结构化数据时，agent-browser 直接返回原始 JSON（57 Token），而 Claude in Chrome 要渲染页面、截图、OCR——4,000-6,000 Token 只为了拿到 200 字节的数据。
+- **JSON API 场景差距最大**：只需要结构化数据时，agent-browser 直接返回原始 JSON（57 Token），而 Claude in Chrome 需要导航、交互、可能回退到视觉模型——Token 开销显著更高。
 - **搜索页面压缩效果惊人**：搜索结果的结构化特征（标题、URL、摘要）完美映射到无障碍树节点，41 Token vs 5,000-8,000。
 - **速度差异会叠加**：5 个浏览器操作链起来，Claude in Chrome 要 40-75 秒，agent-browser 只要 10-20 秒。
 

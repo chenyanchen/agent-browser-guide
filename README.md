@@ -83,14 +83,14 @@ You're done. Your AI agent can now control your Chrome.
 
 ## The Problem
 
-Claude in Chrome connects to your real browser — it has your cookies and login sessions. But the screenshot-based mechanism creates two problems:
+Claude in Chrome connects to your real browser — it has your cookies and login sessions. It uses DOM inspection and accessibility-based approaches first, falling back to screenshots when it can't operate directly. But this vision model involvement still adds overhead:
 
 | Problem | Impact |
 |---------|--------|
-| **Screenshot-heavy** | Each action: render → screenshot → base64 → vision model → reason. One click costs ~2,000-8,000 tokens, takes 8-15 seconds. |
+| **Vision model overhead** | When Claude in Chrome falls back to screenshots, each round-trip involves rendering, base64 encoding, and vision model reasoning — adding significant tokens and latency. |
 | **Site restrictions** | Some sites still block or behave differently under Claude in Chrome's automation: wise.com, reddit.com, mp.weixin.qq.com, and more. |
 
-And when things go wrong? The agent takes more screenshots to debug, doubling the token cost and time.
+And when things go wrong? The agent takes more screenshots to debug, increasing the token cost and time.
 
 ## The Solution
 
@@ -113,7 +113,8 @@ AI Agent (Claude Code / Cursor / Codex / Windsurf / ...)
 
 > **Environment:** macOS Sequoia 15.3, Chrome 145+, residential broadband (China mainland)
 > **Date:** 2026-02-28 | **Sample:** 4 tasks from a stock trading system, single run each
-> **Token estimate:** CLI output chars ÷ 4. Claude in Chrome baselines from prior usage sessions
+> **agent-browser tokens:** Measured from actual CLI output (chars ÷ 4)
+> **Claude in Chrome tokens:** Estimated from prior usage — not yet independently benchmarked. [Help us measure →](https://github.com/chenyanchen/agent-browser-guide/issues)
 > **Note:** Results vary with page content, network, and Chrome version. [Full methodology →](benchmarks/results.md)
 
 ### Per-Task Comparison
@@ -135,7 +136,7 @@ AI Agent (Claude Code / Cursor / Codex / Windsurf / ...)
 | When stuck | More screenshots, 2x cost | Returns error text, minimal overhead |
 | Site access (in our tests) | wise.com, reddit, WeChat restricted | All tested sites accessible |
 | Cookies / login state | ✅ Yes (your real Chrome) | ✅ Yes (your real Chrome via CDP) |
-| Mechanism | Screenshot → vision model | JavaScript eval / accessibility tree |
+| Mechanism | DOM + accessibility, screenshot fallback | JavaScript eval / accessibility tree |
 | Idle token overhead | MCP: 12-24K tokens permanent | Skill: ~150 tokens |
 
 ## Integration Patterns

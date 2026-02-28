@@ -16,10 +16,10 @@ Here's the architecture change (and real numbers):
 
 The problem with Claude in Chrome (computer use):
 
-1. Screenshot-heavy: render -> screenshot -> base64 -> vision. One click = 2K-8K tokens, 8-15s
+1. Vision model overhead: DOM first, but falls back to screenshots. When it does, tokens add up fast.
 2. Some sites restricted: wise.com, reddit, WeChat behave differently under automation
 
-(It HAS your cookies — but the screenshot mechanism makes every action expensive.)
+(It HAS your cookies — but the vision model fallback makes complex tasks expensive.)
 
 ---
 

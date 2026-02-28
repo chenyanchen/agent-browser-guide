@@ -10,9 +10,9 @@ I built a stock trading automation system with Claude Code. Every morning, it an
 
 One of those skills syncs my watchlist to my brokerage account. Simple enough: call an authenticated API to add or remove stock symbols. But here is where things went sideways.
 
-My first approach was "Claude in Chrome" -- Anthropic's feature that embeds Claude into your Chrome browser. It has access to your cookies and login sessions, which is great. But the mechanism is screenshot-based: the browser renders the page, takes a screenshot, converts it to base64, sends it to a vision model, which reasons about what it sees and decides the next action.
+My first approach was "Claude in Chrome" -- Anthropic's feature that embeds Claude into your Chrome browser. It has access to your cookies and login sessions, which is great. It uses DOM inspection and accessibility-based approaches first, but falls back to screenshots when it can't operate directly. When that happens, the browser renders the page, takes a screenshot, converts it to base64, sends it to a vision model, which reasons about what it sees and decides the next action.
 
-For a simple API call that returns 200 bytes of JSON, this process consumed **4,000-6,000 tokens** and took **8-15 seconds**. And that was the *happy path*. When the page didn't load as expected, Claude would take more screenshots to debug, doubling the cost and time.
+For a simple API call that returns 200 bytes of JSON, this vision model overhead added up. And when the page didn't load as expected, Claude would take more screenshots to debug, increasing the cost and time.
 
 Worse, I couldn't even reach some sites. My brokerage platform (10jqka.com.cn) intermittently blocked the automated browser. wise.com, reddit.com, mp.weixin.qq.com -- all refused to serve pages.
 
@@ -36,8 +36,8 @@ The architecture shift looks like this:
 
 ```
 BEFORE (Claude in Chrome):
-  Agent → Your Chrome → Screenshot → Base64 → Vision Model → Reasoning
-  Cost: 2,000-8,000 tokens per action, 8-15s
+  Agent → Your Chrome → DOM/accessibility + screenshot fallback → Vision Model
+  Cost: Higher token overhead from vision model involvement
 
 AFTER (agent-browser + CDP):
   Agent → Bash: agent-browser eval '...'
@@ -61,7 +61,7 @@ I ran four representative tasks from my stock trading system and measured tokens
 
 The numbers speak for themselves. But there are a few things worth highlighting:
 
-**The JSON API case is the most dramatic.** When all you need is structured data from an API, agent-browser returns the raw JSON -- 57 tokens. Claude in Chrome has to render a page, screenshot it, OCR the content, and reason about it. 4,000-6,000 tokens for the same 200 bytes of data.
+**The JSON API case is the most dramatic.** When all you need is structured data from an API, agent-browser returns the raw JSON -- 57 tokens. Claude in Chrome needs to navigate, interact with the page, and potentially fall back to vision model reasoning -- significantly more tokens for the same 200 bytes of data.
 
 **The financial page case shows the floor.** When you genuinely need page content (not just an API response), agent-browser's `snapshot` command returns a compact accessibility tree. At 1,777 tokens, it's still 4.5-8x cheaper than a screenshot-based approach, but the gap is narrower because you're actually fetching substantial content either way.
 
@@ -76,7 +76,7 @@ The numbers speak for themselves. But there are a few things worth highlighting:
 | When stuck | More screenshots, 2x cost | Returns error text, minimal overhead |
 | Site access (in our tests) | wise.com, reddit, WeChat restricted | All tested sites accessible |
 | Cookies / login state | ✅ Yes (your Chrome) | ✅ Yes (your Chrome via CDP) |
-| Mechanism | Screenshot → vision model | JavaScript eval / accessibility tree |
+| Mechanism | DOM + accessibility, screenshot fallback | JavaScript eval / accessibility tree |
 
 The speed difference compounds. A workflow that chains 5 browser actions goes from 40-75 seconds to 10-20 seconds. And when Claude in Chrome gets confused (which happens often on complex pages), it enters a screenshot loop that can easily burn 20,000+ tokens before giving up.
 

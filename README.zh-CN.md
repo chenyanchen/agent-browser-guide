@@ -83,14 +83,14 @@ agent-browser get url
 
 ## 问题
 
-Claude in Chrome 连接的是你的真实浏览器——有 Cookie 和登录态。但截图驱动的机制带来两个问题：
+Claude in Chrome 连接的是你的真实浏览器——有 Cookie 和登录态。它优先通过 DOM 和无障碍树操作页面，无法直接操作时才回退到截图。但视觉模型的介入仍然带来额外开销：
 
 | 问题 | 影响 |
 |------|------|
-| **截图驱动** | 每次操作：渲染 → 截图 → Base64 → 视觉模型 → 推理。一次点击消耗 ~2,000-8,000 Token，耗时 8-15 秒 |
+| **视觉模型开销** | 当 Claude in Chrome 回退到截图时，每次往返涉及渲染、Base64 编码和视觉模型推理——增加显著的 Token 消耗和延迟 |
 | **访问受限** | 部分网站在 Claude in Chrome 的自动化模式下仍然被拦截或行为异常：wise.com、reddit.com、mp.weixin.qq.com 等 |
 
-出了问题怎么办？Agent 多截几张图来排查，Token 和时间翻倍。
+出了问题怎么办？Agent 多截几张图来排查，增加 Token 消耗和耗时。
 
 ## 解决方案
 
@@ -113,7 +113,8 @@ AI Agent（Claude Code / Cursor / Codex / Windsurf / ...）
 
 > **环境：** macOS Sequoia 15.3、Chrome 145+、中国大陆住宅宽带
 > **日期：** 2026-02-28 | **样本：** 股票交易系统中 4 个任务，每个单次运行
-> **Token 估算：** CLI 输出字符数 ÷ 4。Claude in Chrome 基线来自此前实际使用记录
+> **agent-browser Token：** 实测数据（CLI 输出字符数 ÷ 4）
+> **Claude in Chrome Token：** 基于使用经验估算，尚未独立 benchmark。[协助测量 →](https://github.com/chenyanchen/agent-browser-guide/issues)
 > **注意：** 结果受页面内容、网络条件和 Chrome 版本影响。[完整方法论 →](benchmarks/results.md)
 
 ### 单任务对比
@@ -135,7 +136,7 @@ AI Agent（Claude Code / Cursor / Codex / Windsurf / ...）
 | 卡住时 | 更多截图，成本翻倍 | 返回错误文本，开销极小 |
 | 网站访问（本次测试范围） | wise.com、reddit、微信被拦截 | 所有测试站点均可访问 |
 | Cookie / 登录态 | ✅ 有（你的真实 Chrome） | ✅ 有（通过 CDP 连接你的 Chrome） |
-| 工作机制 | 截图 → 视觉模型 | JavaScript eval / 无障碍树 |
+| 工作机制 | DOM + 无障碍树，截图回退 | JavaScript eval / 无障碍树 |
 | 空闲 Token 开销 | MCP：12-24K Token 常驻 | Skill：~150 Token |
 
 ## 集成模式
