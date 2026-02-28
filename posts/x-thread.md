@@ -6,7 +6,7 @@ I reduced my AI agent's browser automation tokens by 95%.
 
 Not by switching models. Not by prompt engineering.
 
-By connecting Claude to my real Chrome instead of spinning up a headless one.
+By replacing screenshots with direct JavaScript eval via CDP.
 
 Here's the architecture change (and real numbers):
 
@@ -14,11 +14,12 @@ Here's the architecture change (and real numbers):
 
 ### Tweet 2
 
-The problem with "Chrome in Claude" (computer use / MCP browser):
+The problem with Claude in Chrome (computer use):
 
-1. Screenshot-heavy: render -> screenshot -> base64 -> vision. One click = 2K-8K tokens
-2. No login state: fresh browser = no cookies
-3. Sites blocked: wise.com, reddit, WeChat refuse automated browsers
+1. Screenshot-heavy: render -> screenshot -> base64 -> vision. One click = 2K-8K tokens, 8-15s
+2. Some sites restricted: wise.com, reddit, WeChat behave differently under automation
+
+(It HAS your cookies — but the screenshot mechanism makes every action expensive.)
 
 ---
 

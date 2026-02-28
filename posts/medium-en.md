@@ -10,19 +10,15 @@ I built a stock trading automation system with Claude Code. Every morning, it an
 
 One of those skills syncs my watchlist to my brokerage account. Simple enough: call an authenticated API to add or remove stock symbols. But here is where things went sideways.
 
-My first approach was "Chrome in Claude" -- Anthropic's computer use feature that gives Claude a browser. It works like this: the agent sends a command, the browser renders the page, takes a screenshot, converts it to base64, sends it to a vision model, which reasons about what it sees and decides the next action.
+My first approach was "Claude in Chrome" -- Anthropic's feature that embeds Claude into your Chrome browser. It has access to your cookies and login sessions, which is great. But the mechanism is screenshot-based: the browser renders the page, takes a screenshot, converts it to base64, sends it to a vision model, which reasons about what it sees and decides the next action.
 
 For a simple API call that returns 200 bytes of JSON, this process consumed **4,000-6,000 tokens** and took **8-15 seconds**. And that was the *happy path*. When the page didn't load as expected, Claude would take more screenshots to debug, doubling the cost and time.
 
-Worse, I couldn't even reach some sites. My brokerage platform (10jqka.com.cn) intermittently blocked the automated browser. wise.com, reddit.com, mp.weixin.qq.com -- all refused to serve pages to headless Chrome instances.
-
-And the authentication problem was the real killer. "Chrome in Claude" spins up a fresh browser instance. No cookies. No login sessions. Every authenticated API call required me to somehow inject credentials, which is both fragile and a security concern.
-
-I needed a fundamentally different approach.
+Worse, I couldn't even reach some sites. My brokerage platform (10jqka.com.cn) intermittently blocked the automated browser. wise.com, reddit.com, mp.weixin.qq.com -- all refused to serve pages.
 
 I also tried WebFetch -- Claude Code's built-in tool for fetching web pages. It converts HTML to markdown and feeds it back. For simple public pages, it works. But for authenticated APIs, it was unreliable: 503 rate limiting, ~3,000 tokens per call, and a success rate around 70%. Not good enough for a trading system that runs daily.
 
-The core problem with all these approaches is the same: they try to **create a new browser environment** to simulate the user. But the user already has a perfectly good browser environment -- their running Chrome instance, with all the cookies and login sessions already in place. Why not just use that?
+The core issue: Claude in Chrome has the cookies I need, but the screenshot-based mechanism is too expensive and slow. WebFetch is cheaper but unreliable and has no cookies. I needed something that combined cookie access with direct data extraction -- no screenshots, no vision model overhead.
 
 ## What Is CDP?
 
@@ -39,8 +35,8 @@ The key insight: **CDP can connect to an already-running Chrome instance**. Not 
 The architecture shift looks like this:
 
 ```
-BEFORE (Chrome in Claude):
-  Agent → Headless Chrome → Screenshot → Base64 → Vision Model → Reasoning
+BEFORE (Claude in Chrome):
+  Agent → Your Chrome → Screenshot → Base64 → Vision Model → Reasoning
   Cost: 2,000-8,000 tokens per action, 8-15s
 
 AFTER (agent-browser + CDP):
@@ -55,7 +51,7 @@ I ran four representative tasks from my stock trading system and measured tokens
 
 ### Per-Task Comparison
 
-| Task | agent-browser Time | agent-browser Tokens | Chrome in Claude Tokens | Reduction |
+| Task | agent-browser Time | agent-browser Tokens | Claude in Chrome Tokens | Reduction |
 |------|-------------------|---------------------|------------------------|-----------|
 | Stock price JSON API | 2.6s | **57** | 4,000-6,000 | 70-105x |
 | Authenticated API call | 3.5s | **217** | 3,000 | 14x |
@@ -65,7 +61,7 @@ I ran four representative tasks from my stock trading system and measured tokens
 
 The numbers speak for themselves. But there are a few things worth highlighting:
 
-**The JSON API case is the most dramatic.** When all you need is structured data from an API, agent-browser returns the raw JSON -- 57 tokens. Chrome in Claude has to render a page, screenshot it, OCR the content, and reason about it. 4,000-6,000 tokens for the same 200 bytes of data.
+**The JSON API case is the most dramatic.** When all you need is structured data from an API, agent-browser returns the raw JSON -- 57 tokens. Claude in Chrome has to render a page, screenshot it, OCR the content, and reason about it. 4,000-6,000 tokens for the same 200 bytes of data.
 
 **The financial page case shows the floor.** When you genuinely need page content (not just an API response), agent-browser's `snapshot` command returns a compact accessibility tree. At 1,777 tokens, it's still 4.5-8x cheaper than a screenshot-based approach, but the gap is narrower because you're actually fetching substantial content either way.
 
@@ -73,15 +69,16 @@ The numbers speak for themselves. But there are a few things worth highlighting:
 
 ### Overall Experience
 
-| Metric | Chrome in Claude | agent-browser + CDP |
+| Metric | Claude in Chrome | agent-browser + CDP |
 |--------|-----------------|-------------------|
 | Tokens per action | ~2,000-8,000 | **~50-1,800** |
 | Speed per action | ~8-15s (screenshots + vision) | **~2-4s** |
-| When stuck | More screenshots, 2x slower | No such issue |
-| Site access | wise.com, reddit, WeChat blocked | **Everything works** |
-| Login state | None (fresh browser) | **Full (your real Chrome)** |
+| When stuck | More screenshots, 2x cost | Returns error text, minimal overhead |
+| Site access (in our tests) | wise.com, reddit, WeChat restricted | All tested sites accessible |
+| Cookies / login state | ✅ Yes (your Chrome) | ✅ Yes (your Chrome via CDP) |
+| Mechanism | Screenshot → vision model | JavaScript eval / accessibility tree |
 
-The speed difference compounds. A workflow that chains 5 browser actions goes from 40-75 seconds to 10-20 seconds. And when Chrome in Claude gets confused (which happens often on complex pages), it enters a screenshot loop that can easily burn 20,000+ tokens before giving up.
+The speed difference compounds. A workflow that chains 5 browser actions goes from 40-75 seconds to 10-20 seconds. And when Claude in Chrome gets confused (which happens often on complex pages), it enters a screenshot loop that can easily burn 20,000+ tokens before giving up.
 
 ## Setup in 5 Minutes
 

@@ -27,7 +27,7 @@ Connect agent-browser to your running Chrome via CDP, so AI agents inherit your 
 
 ### Why
 
-By default, agent-browser launches a **new headless browser** — no cookies, no login state, just like Chrome in Claude. That's fine for public pages.
+By default, agent-browser launches a **new headless browser** — no cookies, no login state. That's fine for public pages.
 
 But if your agent needs to:
 - **Call authenticated APIs** using your browser's cookies and SSO sessions
@@ -83,13 +83,12 @@ You're done. Your AI agent can now control your Chrome.
 
 ## The Problem
 
-"Chrome in Claude" (computer use / MCP browser tools) has three fundamental problems:
+Claude in Chrome connects to your real browser — it has your cookies and login sessions. But the screenshot-based mechanism creates two problems:
 
 | Problem | Impact |
 |---------|--------|
-| **Screenshot-heavy** | Each action: render → screenshot → base64 → vision model → reason. One click costs ~2,000-8,000 tokens. |
-| **No login state** | Fresh browser instance = no cookies. Authenticated APIs are inaccessible. |
-| **Site restrictions** | Many sites block automated browsers: wise.com, reddit.com, mp.weixin.qq.com, and more. |
+| **Screenshot-heavy** | Each action: render → screenshot → base64 → vision model → reason. One click costs ~2,000-8,000 tokens, takes 8-15 seconds. |
+| **Site restrictions** | Some sites still block or behave differently under Claude in Chrome's automation: wise.com, reddit.com, mp.weixin.qq.com, and more. |
 
 And when things go wrong? The agent takes more screenshots to debug, doubling the token cost and time.
 
@@ -112,12 +111,12 @@ AI Agent (Claude Code / Cursor / Codex / etc.)
 
 > **Environment:** macOS Sequoia 15.3, Chrome 145+, residential broadband (China mainland)
 > **Date:** 2026-02-28 | **Sample:** 4 tasks from a stock trading system, single run each
-> **Token estimate:** CLI output chars ÷ 4. Chrome in Claude baselines from prior usage sessions
+> **Token estimate:** CLI output chars ÷ 4. Claude in Chrome baselines from prior usage sessions
 > **Note:** Results vary with page content, network, and Chrome version. [Full methodology →](benchmarks/results.md)
 
 ### Per-Task Comparison
 
-| Task | agent-browser Time | agent-browser Tokens | Chrome in Claude Tokens | Reduction |
+| Task | agent-browser Time | agent-browser Tokens | Claude in Chrome Tokens | Reduction |
 |------|-------------------|---------------------|------------------------|-----------|
 | Stock price JSON API | 2.6s | **57** | 4,000-6,000 | 70-105x |
 | Authenticated API call | 3.5s | **217** | 3,000 | 14x |
@@ -127,13 +126,14 @@ AI Agent (Claude Code / Cursor / Codex / etc.)
 
 ### Overall Comparison
 
-| Metric | Chrome in Claude | agent-browser + CDP |
+| Metric | Claude in Chrome | agent-browser + CDP |
 |--------|-----------------|-------------------|
 | Tokens per action | ~2,000-8,000 | **~50-1,800** |
 | Speed per action | ~8-15s (screenshots + vision) | **~2-4s** |
 | When stuck | More screenshots, 2x cost | Returns error text, minimal overhead |
-| Site access (in our tests) | wise.com, reddit, WeChat blocked | All tested sites accessible |
-| Login state | None (fresh browser) | Full (your real Chrome) |
+| Site access (in our tests) | wise.com, reddit, WeChat restricted | All tested sites accessible |
+| Cookies / login state | ✅ Yes (your real Chrome) | ✅ Yes (your real Chrome via CDP) |
+| Mechanism | Screenshot → vision model | JavaScript eval / accessibility tree |
 | Idle token overhead | MCP: 12-24K tokens permanent | Skill: ~150 tokens |
 
 ## Integration Patterns

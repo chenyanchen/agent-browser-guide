@@ -27,7 +27,7 @@
 
 ### 为什么
 
-默认情况下，agent-browser 会启动一个**全新的无头浏览器**——没有 Cookie、没有登录态，和 Chrome in Claude 一样。访问公开页面没问题。
+默认情况下，agent-browser 会启动一个**全新的无头浏览器**——没有 Cookie、没有登录态。访问公开页面没问题。
 
 但如果你的 Agent 需要：
 - **调用带鉴权的 API**（Cookie、SSO、内部工具）
@@ -83,13 +83,12 @@ agent-browser get url
 
 ## 问题
 
-"Chrome in Claude"（计算机使用 / MCP 浏览器工具）有三个根本性问题：
+Claude in Chrome 连接的是你的真实浏览器——有 Cookie 和登录态。但截图驱动的机制带来两个问题：
 
 | 问题 | 影响 |
 |------|------|
-| **截图驱动** | 每次操作：渲染 → 截图 → Base64 → 视觉模型 → 推理。一次点击消耗 ~2,000-8,000 Token |
-| **没有登录态** | 全新浏览器实例 = 没有 Cookie。带鉴权的 API 无法调用 |
-| **网站拦截** | 很多网站拒绝自动化浏览器：wise.com、reddit.com、mp.weixin.qq.com 等 |
+| **截图驱动** | 每次操作：渲染 → 截图 → Base64 → 视觉模型 → 推理。一次点击消耗 ~2,000-8,000 Token，耗时 8-15 秒 |
+| **访问受限** | 部分网站在 Claude in Chrome 的自动化模式下仍然被拦截或行为异常：wise.com、reddit.com、mp.weixin.qq.com 等 |
 
 出了问题怎么办？Agent 多截几张图来排查，Token 和时间翻倍。
 
@@ -112,12 +111,12 @@ AI Agent（Claude Code / Cursor / Codex 等）
 
 > **环境：** macOS Sequoia 15.3、Chrome 145+、中国大陆住宅宽带
 > **日期：** 2026-02-28 | **样本：** 股票交易系统中 4 个任务，每个单次运行
-> **Token 估算：** CLI 输出字符数 ÷ 4。Chrome in Claude 基线来自此前实际使用记录
+> **Token 估算：** CLI 输出字符数 ÷ 4。Claude in Chrome 基线来自此前实际使用记录
 > **注意：** 结果受页面内容、网络条件和 Chrome 版本影响。[完整方法论 →](benchmarks/results.md)
 
 ### 单任务对比
 
-| 任务 | agent-browser 耗时 | agent-browser Token | Chrome in Claude Token | 降幅 |
+| 任务 | agent-browser 耗时 | agent-browser Token | Claude in Chrome Token | 降幅 |
 |------|-------------------|---------------------|----------------------|------|
 | 股价 JSON API | 2.6s | **57** | 4,000-6,000 | 70-105x |
 | 带鉴权的 API 调用 | 3.5s | **217** | 3,000 | 14x |
@@ -127,13 +126,14 @@ AI Agent（Claude Code / Cursor / Codex 等）
 
 ### 整体对比
 
-| 指标 | Chrome in Claude | agent-browser + CDP |
+| 指标 | Claude in Chrome | agent-browser + CDP |
 |------|-----------------|-------------------|
 | 每次操作 Token | ~2,000-8,000 | **~50-1,800** |
 | 每次操作速度 | ~8-15 秒（截图 + 视觉模型） | **~2-4 秒** |
 | 卡住时 | 更多截图，成本翻倍 | 返回错误文本，开销极小 |
 | 网站访问（本次测试范围） | wise.com、reddit、微信被拦截 | 所有测试站点均可访问 |
-| 登录态 | 无（全新浏览器） | 完整（你的真实 Chrome） |
+| Cookie / 登录态 | ✅ 有（你的真实 Chrome） | ✅ 有（通过 CDP 连接你的 Chrome） |
+| 工作机制 | 截图 → 视觉模型 | JavaScript eval / 无障碍树 |
 | 空闲 Token 开销 | MCP：12-24K Token 常驻 | Skill：~150 Token |
 
 ## 集成模式
