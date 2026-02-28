@@ -1,6 +1,6 @@
-# I Cut My AI Agent's Browser Tokens by 95% With One Architecture Change
+# I Made My AI Agent's Browser Automation 2.5x Faster — And Agent-Agnostic
 
-*How connecting Claude to my real Chrome via CDP replaced screenshots with surgical API calls*
+*How connecting to my real Chrome via CDP gave any AI agent fast, authenticated browser access*
 
 ---
 
@@ -18,7 +18,7 @@ Worse, I couldn't even reach some sites. My brokerage platform (10jqka.com.cn) i
 
 I also tried WebFetch -- Claude Code's built-in tool for fetching web pages. It converts HTML to markdown and feeds it back. For simple public pages, it works. But for authenticated APIs, it was unreliable: 503 rate limiting, ~3,000 tokens per call, and a success rate around 70%. Not good enough for a trading system that runs daily.
 
-The core issue: Claude in Chrome has the cookies I need, but the screenshot-based mechanism is too expensive and slow. WebFetch is cheaper but unreliable and has no cookies. I needed something that combined cookie access with direct data extraction -- no screenshots, no vision model overhead.
+The core issue: Claude in Chrome has the cookies I need, but it's slow and Claude-only. WebFetch is unreliable and has no cookies. I needed something faster, more reliable, and that would work with any AI agent -- not just Claude.
 
 ## What Is CDP?
 
@@ -36,49 +36,45 @@ The architecture shift looks like this:
 
 ```
 BEFORE (Claude in Chrome):
-  Agent → Your Chrome → DOM/accessibility + screenshot fallback → Vision Model
-  Cost: Higher token overhead from vision model involvement
+  Claude → Your Chrome → JS eval / screenshot fallback → Result
+  Speed: ~64s per task | Portability: Claude only
 
 AFTER (agent-browser + CDP):
-  Agent → Bash: agent-browser eval '...'
-       → CDP → Your Chrome → JSON response
-  Cost: 50-200 tokens per action, 2-4s
+  Any Agent → Bash: agent-browser eval '...'
+           → CDP → Your Chrome → JSON response
+  Speed: ~26s per task | Portability: Any agent that can run bash
 ```
 
-## The Benchmark That Changed My Mind
+## The Benchmark That Surprised Me
 
-I ran four representative tasks from my stock trading system and measured tokens and time for each approach. These are real measurements, not synthetic benchmarks.
+I expected agent-browser to be dramatically cheaper on tokens. I designed a controlled benchmark: open Hacker News, extract the top 10 story titles, return a JSON array. Both approaches ran back-to-back in fresh Claude Code sessions on the same machine. I measured tokens via `/context` before and after.
 
-### Per-Task Comparison
+The result was not what I expected.
 
-| Task | agent-browser Time | agent-browser Tokens | Claude in Chrome Tokens | Reduction |
-|------|-------------------|---------------------|------------------------|-----------|
-| Stock price JSON API | 2.6s | **57** | 4,000-6,000 | 70-105x |
-| Authenticated API call | 3.5s | **217** | 3,000 | 14x |
-| Financial page snapshot | 2.9s | **1,777** | 8,000-15,000 | 4.5-8x |
-| Search page snapshot | 1.8s | **41** | 5,000-8,000 | 122-195x |
-| **Total (4 tasks)** | **10.8s** | **2,092** | **20,000-32,000** | **10-15x** |
+### Task: Extract Hacker News Top 10 Titles
 
-The numbers speak for themselves. But there are a few things worth highlighting:
+| Metric | agent-browser + CDP | Claude in Chrome |
+|--------|---------------------|------------------|
+| **Total time** | **26s** | **64s** |
+| Context delta | +7k tokens | +2k tokens |
+| Message tokens | +8k (incl. ~4.9k skill load) | +3.9k |
+| Mechanism used | JS eval via Bash CLI | JS eval via MCP tool |
 
-**The JSON API case is the most dramatic.** When all you need is structured data from an API, agent-browser returns the raw JSON -- 57 tokens. Claude in Chrome needs to navigate, interact with the page, and potentially fall back to vision model reasoning -- significantly more tokens for the same 200 bytes of data.
+Both approaches used the **same underlying mechanism**: JavaScript evaluation. Both executed `document.querySelectorAll('.titleline > a')` and returned identical results. No screenshots in either session.
 
-**The financial page case shows the floor.** When you genuinely need page content (not just an API response), agent-browser's `snapshot` command returns a compact accessibility tree. At 1,777 tokens, it's still 4.5-8x cheaper than a screenshot-based approach, but the gap is narrower because you're actually fetching substantial content either way.
+Token usage per task was **comparable**. Claude in Chrome actually used fewer context tokens (+2k vs +7k), because agent-browser had to load skill instructions (~4.9k one-time cost). Subtracting the skill load, task messages were similar (~3.1k vs ~3.9k).
 
-**The search page result is surprising.** A search results page compresses remarkably well into an accessibility tree -- the structured nature of search results (title, URL, snippet) maps perfectly to accessibility nodes. 41 tokens vs 5,000-8,000.
+### So Where's the Real Advantage?
 
-### Overall Experience
+**Speed.** agent-browser was 2.5x faster (26s vs 64s). The browser operations were similar (~11s vs ~7s), but agent-browser had less API roundtrip overhead.
 
-| Metric | Claude in Chrome | agent-browser + CDP |
-|--------|-----------------|-------------------|
-| Tokens per action | ~2,000-8,000 | **~50-1,800** |
-| Speed per action | ~8-15s (screenshots + vision) | **~2-4s** |
-| When stuck | More screenshots, 2x cost | Returns error text, minimal overhead |
-| Site access (in our tests) | wise.com, reddit, WeChat restricted | All tested sites accessible |
-| Cookies / login state | ✅ Yes (your Chrome) | ✅ Yes (your Chrome via CDP) |
-| Mechanism | DOM + accessibility, screenshot fallback | JavaScript eval / accessibility tree |
+**Idle cost.** This is the architectural win. Claude in Chrome loads 18 MCP tools (~5,600 tokens) into every API call for the entire session — even when you're writing code, not using the browser. agent-browser's skill descriptions cost ~586 tokens when idle. That's a 10x difference that compounds over a full coding session.
 
-The speed difference compounds. A workflow that chains 5 browser actions goes from 40-75 seconds to 10-20 seconds. And when Claude in Chrome gets confused (which happens often on complex pages), it enters a screenshot loop that can easily burn 20,000+ tokens before giving up.
+**Portability.** agent-browser is a CLI tool. Any AI agent that can run bash — Claude Code, Codex, Cursor, Windsurf, Copilot — can use it. Claude in Chrome only works with Claude. This is not a Claude-specific optimization; it's a universal solution.
+
+### What Claude in Chrome Does Better
+
+To be fair: Claude in Chrome has a **vision fallback**. When JavaScript can't handle a task (complex visual UIs, unfamiliar page layouts), it can fall back to screenshots + vision model. agent-browser has `snapshot` (accessibility trees) but no vision capability. For visual exploration of unknown sites, Claude in Chrome is the better tool.
 
 ## Setup in 5 Minutes
 
@@ -217,9 +213,9 @@ agent-browser ships with both a CLI (for the Skill approach) and an MCP server. 
 
 ### Idle Cost
 
-When you register an MCP server with Claude Code, its tool schemas are loaded into the context window **at all times**. agent-browser's MCP server exposes 40+ tools with detailed schemas. That's **12,000-24,000 tokens** permanently consumed, even when you're doing non-browser work like editing code or writing tests.
+When you register an MCP server with Claude Code, its tool schemas are loaded into the context window **at all times**. In our benchmark, Claude in Chrome loaded 18 MCP tools costing **~5,600 tokens** — permanently consumed even when you're writing code, not using the browser.
 
-A Skill, by contrast, is just a markdown file with a name and description. When not active, it costs **~150 tokens** (just the one-line description in the skill registry). The full instructions only load when the skill is invoked.
+A Skill, by contrast, is just a markdown file with a name and description. When not active, it costs **~586 tokens** (just the one-line descriptions in the skill registry). The full instructions (~4.9k) only load when the skill is invoked.
 
 ### Per-Action Cost
 
@@ -247,18 +243,18 @@ agent-browser eval 'document.title'
 
 Consider a typical session where you do 30 minutes of coding, then 2 minutes of browser automation (5 actions), then 30 more minutes of coding.
 
-**MCP approach:**
-- Idle cost: 18,000 tokens (average) x 60 minutes = 18,000 tokens (loaded once, persistent)
-- Action cost: 5 x 1,000 tokens = 5,000 tokens
-- Total: **23,000 tokens**
+**MCP approach (measured):**
+- Idle cost: 5,600 tokens (18 MCP tools, loaded into every API call)
+- Action cost: 5 x 800 tokens = 4,000 tokens
+- Total: **9,600 tokens**
 
-**Skill approach:**
-- Idle cost: 150 tokens (just the description)
-- Skill load: ~800 tokens (loaded on invocation, unloaded after)
-- Action cost: 5 x 150 tokens = 750 tokens
-- Total: **1,700 tokens**
+**Skill approach (measured):**
+- Idle cost: 586 tokens (skill descriptions)
+- Skill load: ~4,900 tokens (loaded on invocation, unloaded after)
+- Action cost: 5 x 600 tokens = 3,000 tokens
+- Total: **8,486 tokens**
 
-That's a **13.5x difference**. And the gap widens the more time you spend *not* using the browser, which is most of the time.
+The per-session difference is modest. But **MCP's 5,600 tokens load into every API call** — even during pure coding work. Over a full session with intermittent browser use, the idle overhead compounds.
 
 ### Maturity
 
@@ -350,20 +346,18 @@ The agent sees either clean JSON or a structured error. No ambiguity, no screens
 
 ## Conclusion
 
-This isn't about "agent-browser vs MCP" or "CDP vs computer use." Each tool has its place:
+This isn't about "agent-browser vs Claude in Chrome." Each tool has its place:
 
-- **Computer use / MCP browser tools**: Best for visual exploration of unknown sites, visual verification, and tasks where the agent needs to *see* the page.
-- **agent-browser + CDP**: Best for structured data extraction, authenticated API calls, and repeated workflows where you know the target pages.
+- **Claude in Chrome**: Best for visual exploration of unknown sites, and tasks where the agent needs to *see* the page. Has a vision fallback that agent-browser lacks.
+- **agent-browser + CDP**: Best for speed, portability, and keeping your context window clean during long coding sessions.
 
-The insight is simple: **most browser automation tasks don't need vision**. They need data. When you replace "render page -> screenshot -> base64 -> vision model -> extract text" with "fetch() -> JSON," you cut tokens by 95% and time by 75%.
+The insight is simpler than I originally thought. I expected a massive token gap. What I found was: **for JavaScript eval tasks, both approaches use comparable tokens**. The real wins are speed (2.5x faster), idle cost (10x lower), and portability (any agent, not just Claude).
 
-If your AI agent regularly interacts with the web -- especially authenticated APIs -- try the CDP approach. The setup takes 5 minutes, and the token savings compound with every action.
+That portability point is worth emphasizing. agent-browser is a CLI tool. Any AI agent that can execute shell commands — Claude Code, Codex, Cursor, Windsurf, Copilot — gets the same capabilities with the same setup. No SDK, no vendor lock-in. If your agent can run `bash`, it can control your browser via CDP.
 
-And because agent-browser is a CLI tool, this approach is **agent-agnostic**. I use Claude Code, but any AI agent that can execute shell commands — Codex, Cursor, Windsurf, Copilot — gets the same capabilities with the same setup. No SDK, no vendor lock-in. If your agent can run `bash`, it can control your browser via CDP.
+The tools are maturing fast. A year ago, giving an AI agent browser access meant Puppeteer scripts and fragile selectors. Today, agent-browser gives you a clean CLI that connects to your real Chrome in one line.
 
-The tools are maturing fast. A year ago, giving an AI agent browser access meant Puppeteer scripts and fragile selectors. Today, agent-browser gives you a clean CLI that connects to your real Chrome in one line. The developer experience is already good. The token economics make it a no-brainer for structured, repeatable browser tasks.
-
-Start with one task. Measure the tokens. Compare to your current approach. I think you'll be surprised by the difference.
+Start with one task. Measure the speed. Compare to your current approach. I think you'll appreciate the difference.
 
 ---
 

@@ -1,6 +1,6 @@
 # 通过 CDP 将 AI Agent 连接到你的真实 Chrome
 
-> 用 [agent-browser](https://github.com/vercel-labs/agent-browser) + Chrome DevTools Protocol，让 AI Agent 使用你浏览器的 Cookie、登录态和扩展——Token 消耗降低 10-15 倍。
+> 用 [agent-browser](https://github.com/vercel-labs/agent-browser) + Chrome DevTools Protocol，让 AI Agent 使用你浏览器的 Cookie、登录态和扩展——速度快 2.5 倍、空闲开销更低、任何 AI Agent 都能用。
 
 [English Version](README.md)
 
@@ -111,33 +111,33 @@ AI Agent（Claude Code / Cursor / Codex / Windsurf / ...）
 
 ## 性能对比
 
-> **环境：** macOS Sequoia 15.3、Chrome 145+、中国大陆住宅宽带
-> **日期：** 2026-02-28 | **样本：** 股票交易系统中 4 个任务，每个单次运行
-> **agent-browser Token：** 实测数据（CLI 输出字符数 ÷ 4）
-> **Claude in Chrome Token：** 基于使用经验估算，尚未独立 benchmark。[协助测量 →](https://github.com/chenyanchen/agent-browser-guide/issues)
-> **注意：** 结果受页面内容、网络条件和 Chrome 版本影响。[完整方法论 →](benchmarks/results.md)
+> **任务：** 打开 Hacker News，提取前 10 条标题，返回 JSON 数组
+> **环境：** macOS Sequoia 15.3、Chrome 145+、Claude Code 2.1.63（Opus 4.6）
+> **日期：** 2026-02-28 | 两个会话在同一台机器上背靠背运行
+> **方法：** 任务前后分别执行 `/context` 命令测量 Token 用量，记录从发送 prompt 到完成的时间
+> **注意：** 两种方案都使用了 JavaScript eval——没有截图。[完整方法论 →](benchmarks/results.md)
 
-### 单任务对比
+### 任务结果
 
-| 任务 | agent-browser 耗时 | agent-browser Token | Claude in Chrome Token | 降幅 |
-|------|-------------------|---------------------|----------------------|------|
-| 股价 JSON API | 2.6s | **57** | 4,000-6,000 | 70-105x |
-| 带鉴权的 API 调用 | 3.5s | **217** | 3,000 | 14x |
-| 财经页面快照 | 2.9s | **1,777** | 8,000-15,000 | 4.5-8x |
-| 搜索结果页面 | 1.8s | **41** | 5,000-8,000 | 122-195x |
-| **合计（4 个任务）** | **10.8s** | **2,092** | **20,000-32,000** | **10-15x** |
+| 指标 | agent-browser + CDP | Claude in Chrome |
+|------|---------------------|------------------|
+| **总耗时** | **26 秒** | **64 秒** |
+| Context 增量 | +7k Token | +2k Token |
+| 消息 Token | +8k（含 ~4.9k Skill 加载） | +3.9k |
+| 浏览器操作耗时 | ~11 秒 | ~7.4 秒 |
+| 使用的机制 | JS eval（Bash CLI） | JS eval（MCP 工具） |
 
-### 整体对比
+两种方案执行了相同的 JavaScript（`document.querySelectorAll('.titleline > a')`），返回了相同的结果。单次任务的 Token 消耗**接近**——差异在于架构开销。
 
-| 指标 | Claude in Chrome | agent-browser + CDP |
-|------|-----------------|-------------------|
-| 每次操作 Token | ~2,000-8,000 | **~50-1,800** |
-| 每次操作速度 | ~8-15 秒（截图 + 视觉模型） | **~2-4 秒** |
-| 卡住时 | 更多截图，成本翻倍 | 返回错误文本，开销极小 |
-| 网站访问（本次测试范围） | wise.com、reddit、微信被拦截 | 所有测试站点均可访问 |
-| Cookie / 登录态 | ✅ 有（你的真实 Chrome） | ✅ 有（通过 CDP 连接你的 Chrome） |
-| 工作机制 | DOM + 无障碍树，截图回退 | JavaScript eval / 无障碍树 |
-| 空闲 Token 开销 | MCP：12-24K Token 常驻 | Skill：~150 Token |
+### 真正的差异在哪里
+
+| 指标 | agent-browser（Skill） | Claude in Chrome（MCP） |
+|------|----------------------|------------------------|
+| **速度** | **快 2.5 倍**（26s vs 64s） | 基线 |
+| **空闲 Token 开销** | **~586 Token**（Skill 描述） | **~5,600 Token**（18 个 MCP 工具，始终加载） |
+| **通用性** | **任何 Agent**（Claude Code、Codex、Cursor、Windsurf……） | 仅限 Claude |
+| Cookie / 登录态 | ✅ 有（通过 CDP 连接你的 Chrome） | ✅ 有（你的 Chrome） |
+| 视觉回退 | ❌（仅无障碍树） | ✅（JS 无法处理时截图） |
 
 ## 集成模式
 
@@ -274,14 +274,14 @@ agent-browser 为 Claude Code 提供两种集成路径：
 
 | 维度 | Skill (CLI) | MCP Server |
 |------|-------------|------------|
-| 空闲 Token 成本 | ~150 Token（仅描述信息） | **12,000-24,000 Token**（40+ 工具 Schema，始终加载） |
+| 空闲 Token 成本 | ~586 Token（Skill 描述） | **~5,600 Token**（18 个 MCP 工具，始终加载） |
 | 每次操作成本 | ~50-200 Token（bash 单行命令） | ~500-2,000（结构化工具调用） |
 | 命令链接 | `&&` 链接减少往返 | 每个操作 = 独立工具调用 |
 | 预授权 | SKILL.md frontmatter 内置 | 手动配置，已知 Bug |
 | 成熟度 | 官方维护（Vercel） | 社区包装（单人作者） |
 | Vercel 推荐 | **是**（官方发布 SKILL.md） | 否（关闭了多个 MCP PR） |
 
-**我们的实际体验：** MCP 即使不用浏览器也会常驻消耗 12-24K Token。Skill 方式空闲时成本近乎为零。对于间歇性浏览器使用（大多数开发场景），Skill 是更节省 Token 的选择。
+**实测（2026-02-28）：** Claude in Chrome 的 MCP 加载 5,600 Token（18 个工具）到每次 API 调用，贯穿整个会话。Skill 方式空闲时仅消耗 ~586 Token。对于间歇性浏览器使用（大多数开发场景），Skill 是更节省 Token 的选择。
 
 深入分析：[docs/skill-vs-mcp.md](docs/skill-vs-mcp.md)
 

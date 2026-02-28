@@ -1,6 +1,6 @@
 # Connect AI Agents to Your Real Chrome via CDP
 
-> Use [agent-browser](https://github.com/vercel-labs/agent-browser) + Chrome DevTools Protocol to give AI agents access to your browser's cookies, login sessions, and extensions — at 10-15x fewer tokens than screenshot-based approaches.
+> Use [agent-browser](https://github.com/vercel-labs/agent-browser) + Chrome DevTools Protocol to give AI agents access to your browser's cookies, login sessions, and extensions — 2.5x faster, with lower idle overhead, and works with any AI agent.
 
 [中文版](README.zh-CN.md)
 
@@ -111,33 +111,33 @@ AI Agent (Claude Code / Cursor / Codex / Windsurf / ...)
 
 ## Benchmarks
 
-> **Environment:** macOS Sequoia 15.3, Chrome 145+, residential broadband (China mainland)
-> **Date:** 2026-02-28 | **Sample:** 4 tasks from a stock trading system, single run each
-> **agent-browser tokens:** Measured from actual CLI output (chars ÷ 4)
-> **Claude in Chrome tokens:** Estimated from prior usage — not yet independently benchmarked. [Help us measure →](https://github.com/chenyanchen/agent-browser-guide/issues)
-> **Note:** Results vary with page content, network, and Chrome version. [Full methodology →](benchmarks/results.md)
+> **Task:** Open Hacker News, extract top 10 story titles, return JSON array
+> **Environment:** macOS Sequoia 15.3, Chrome 145+, Claude Code 2.1.63 (Opus 4.6)
+> **Date:** 2026-02-28 | Both sessions ran back-to-back on the same machine
+> **Method:** `/context` before and after task, wall-clock time from prompt to answer
+> **Note:** Both approaches used JavaScript evaluation — no screenshots in either session. [Full methodology →](benchmarks/results.md)
 
-### Per-Task Comparison
+### Task Results
 
-| Task | agent-browser Time | agent-browser Tokens | Claude in Chrome Tokens | Reduction |
-|------|-------------------|---------------------|------------------------|-----------|
-| Stock price JSON API | 2.6s | **57** | 4,000-6,000 | 70-105x |
-| Authenticated API call | 3.5s | **217** | 3,000 | 14x |
-| Financial page snapshot | 2.9s | **1,777** | 8,000-15,000 | 4.5-8x |
-| Search page snapshot | 1.8s | **41** | 5,000-8,000 | 122-195x |
-| **Total (4 tasks)** | **10.8s** | **2,092** | **20,000-32,000** | **10-15x** |
+| Metric | agent-browser + CDP | Claude in Chrome |
+|--------|---------------------|------------------|
+| **Total time** | **26s** | **64s** |
+| Context delta | +7k tokens | +2k tokens |
+| Message tokens | +8k (incl. ~4.9k skill load) | +3.9k |
+| Browser ops time | ~11s | ~7.4s |
+| Mechanism used | JS eval via Bash CLI | JS eval via MCP tool |
 
-### Overall Comparison
+Both approaches executed the same JavaScript (`document.querySelectorAll('.titleline > a')`) and returned identical results. Token usage per task is **comparable** — the difference is in overhead structure.
 
-| Metric | Claude in Chrome | agent-browser + CDP |
-|--------|-----------------|-------------------|
-| Tokens per action | ~2,000-8,000 | **~50-1,800** |
-| Speed per action | ~8-15s (screenshots + vision) | **~2-4s** |
-| When stuck | More screenshots, 2x cost | Returns error text, minimal overhead |
-| Site access (in our tests) | wise.com, reddit, WeChat restricted | All tested sites accessible |
-| Cookies / login state | ✅ Yes (your real Chrome) | ✅ Yes (your real Chrome via CDP) |
-| Mechanism | DOM + accessibility, screenshot fallback | JavaScript eval / accessibility tree |
-| Idle token overhead | MCP: 12-24K tokens permanent | Skill: ~150 tokens |
+### Where the Real Difference Is
+
+| Metric | agent-browser (Skill) | Claude in Chrome (MCP) |
+|--------|----------------------|------------------------|
+| **Speed** | **2.5x faster** (26s vs 64s) | Baseline |
+| **Idle token overhead** | **~586 tokens** (skill descriptions) | **~5,600 tokens** (18 MCP tools, always loaded) |
+| **Portability** | **Any agent** (Claude Code, Codex, Cursor, Windsurf, ...) | Claude only |
+| Cookies / login state | ✅ Yes (your Chrome via CDP) | ✅ Yes (your Chrome) |
+| Vision fallback | ❌ (accessibility tree only) | ✅ (screenshot when JS can't handle it) |
 
 ## Integration Patterns
 
@@ -274,14 +274,14 @@ agent-browser offers two integration paths for Claude Code:
 
 | Dimension | Skill (CLI) | MCP Server |
 |-----------|-------------|------------|
-| Idle token cost | ~150 tokens (description only) | **12,000-24,000 tokens** (40+ tool schemas, always loaded) |
+| Idle token cost | ~586 tokens (skill descriptions) | **~5,600 tokens** (18 MCP tools, always loaded) |
 | Per-action cost | ~50-200 tokens (bash one-liners) | ~500-2,000 (structured tool calls) |
 | Command chaining | `&&` chains reduce round-trips | Each action = separate tool call |
 | Pre-authorization | Built into SKILL.md frontmatter | Manual config, known bugs |
 | Maturity | Official (Vercel-maintained) | Community wrapper (single author) |
 | Vercel's recommendation | **Yes** (ships official SKILL.md) | No (closed multiple MCP PRs) |
 
-**In our experience:** MCP permanently consumes 12-24K tokens even when the browser is idle. The Skill approach costs near-zero when idle. For intermittent browser use (which is most development sessions), Skill is the more token-efficient choice.
+**Measured (2026-02-28):** Claude in Chrome's MCP loads 5,600 tokens (18 tools) into every API call for the entire session. The Skill approach costs ~586 tokens when idle. For intermittent browser use (which is most development sessions), Skill is the more token-efficient choice.
 
 Deep dive: [docs/skill-vs-mcp.md](docs/skill-vs-mcp.md)
 

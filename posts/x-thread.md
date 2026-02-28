@@ -2,51 +2,40 @@
 
 ### Tweet 1
 
-I reduced my AI agent's browser automation tokens by 95%.
+I made my AI agent's browser automation 2.5x faster — and agent-agnostic.
 
-Not by switching models. Not by prompt engineering.
+Not a new model. Not prompt engineering. Just connecting to my real Chrome via CDP instead of going through Claude in Chrome.
 
-By replacing screenshots with direct JavaScript eval via CDP.
-
-Here's the architecture change (and real numbers):
+Here's what I measured (and what surprised me): 🧵
 
 ---
 
 ### Tweet 2
 
-The problem with Claude in Chrome (computer use):
+I expected a massive token gap. I ran a controlled benchmark: same task (extract HN top 10 titles), same machine, back-to-back.
 
-1. Vision model overhead: DOM first, but falls back to screenshots. When it does, tokens add up fast.
-2. Some sites restricted: wise.com, reddit, WeChat behave differently under automation
+agent-browser + CDP: 26s, +7k context tokens
+Claude in Chrome: 64s, +2k context tokens
 
-(It HAS your cookies — but the vision model fallback makes complex tasks expensive.)
+Wait — Claude in Chrome used FEWER tokens?
 
 ---
 
 ### Tweet 3
 
-The fix is one line:
+Yes. Because both approaches used the same mechanism: JavaScript eval. No screenshots in either session.
 
-```
-agent-browser eval 'document.title'
-```
-
-This connects to your running Chrome via CDP (Chrome DevTools Protocol). Your cookies. Your sessions. Your extensions.
-
-It's a CLI tool — works with ANY agent that can run bash. Claude Code, Codex, Cursor, Windsurf. No vendor lock-in.
+Claude in Chrome's `javascript_tool` ≈ agent-browser's `eval`. For JS-capable tasks, token usage is comparable.
 
 ---
 
 ### Tweet 4
 
-Real benchmark from my stock trading system:
+So where's the win?
 
-Stock API: 57 tokens vs 4,000-6,000 (70-105x)
-Auth API: 217 vs 3,000 (14x)
-Financial page: 1,777 vs 8,000-15,000 (4.5-8x)
-Search page: 41 vs 5,000-8,000 (122-195x)
-
-Total: 2,092 vs 20,000-32,000. ~15x cheaper.
+1. Speed: 2.5x faster (26s vs 64s)
+2. Idle cost: Skill loads ~586 tokens idle. MCP loads ~5,600 tokens EVERY turn, even when you're just writing code.
+3. Portability: agent-browser is a CLI. Works with ANY agent — Codex, Cursor, Windsurf, Copilot. No vendor lock-in.
 
 ---
 
@@ -59,7 +48,7 @@ I built a Claude Code skill chain around it:
     -> agent-browser (calls authenticated API)
       -> Chrome CDP -> Broker API (with my cookies)
 
-217 tokens. 3.5 seconds. 100% reliable.
+26s. Any agent that can run bash can do this.
 
 ---
 
@@ -77,21 +66,18 @@ Cost me 2 hours. Don't repeat my mistake.
 
 When NOT to use this:
 
-- Exploring unknown sites (use MCP / computer use -- you need vision)
+- Exploring unknown sites (Claude in Chrome has vision fallback — you need it)
 - CI/CD pipelines (use headless mode, not CDP to a live browser)
 - Multi-user systems (CDP = one user's browser)
 
-It's not about replacing MCP. It's about picking the right tool.
+Both tools have their place.
 
 ---
 
 ### Tweet 8
 
-Full guide with benchmarks, gotchas, and Claude Code skill templates:
+Full guide with real benchmarks, gotchas, and skill templates:
 
 github.com/chenyanchen/agent-browser-guide
 
-MCP idle cost: 12-24K tokens (always loaded).
-Skill idle cost: ~150 tokens.
-
-Choose accordingly.
+The honest finding: tokens are comparable for JS eval tasks. The real wins are speed (2.5x), idle cost (10x lower), and portability (any agent).
