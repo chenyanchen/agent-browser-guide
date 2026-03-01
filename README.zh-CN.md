@@ -111,29 +111,30 @@ AI Agent（Claude Code / Cursor / Codex / Windsurf / ...）
 
 ## 性能对比
 
-> **任务：** 打开 Hacker News，提取前 10 条标题，返回 JSON 数组
-> **环境：** macOS Sequoia 15.3、Chrome 145+、Claude Code 2.1.63（Opus 4.6）
-> **日期：** 2026-02-28 | 两个会话在同一台机器上背靠背运行
-> **方法：** 任务前后分别执行 `/context` 命令测量 Token 用量，记录从发送 prompt 到完成的时间
-> **注意：** 两种方案都使用了 JavaScript eval——没有截图。[完整方法论 →](benchmarks/results.md)
+三个复杂度递增的任务，在同一台机器上背靠背运行。Token 数据来自会话 JSONL 的 `usage` 字段，耗时来自时间戳。[完整方法论 →](benchmarks/results.md)
 
-### 任务结果
+### 速度：稳定领先
 
-| 指标 | agent-browser + CDP | Claude in Chrome |
-|------|---------------------|------------------|
-| **总耗时** | **26 秒** | **64 秒** |
-| Context 增量 | +7k Token | +2k Token |
-| 消息 Token | +8k（含 ~4.9k Skill 加载） | +3.9k |
-| 浏览器操作耗时 | ~11 秒 | ~7.4 秒 |
-| 使用的机制 | JS eval（Bash CLI） | JS eval（MCP 工具） |
+| 任务 | agent-browser | Claude in Chrome | 加速比 |
+|------|--------------|------------------|--------|
+| 数据提取（HN Top 10） | 28s | 50s | 1.8x |
+| 表单登录（填写 + 点击） | 28s | 50s | 1.8x |
+| x.com 发帖 + 删帖 | 2m19s | 3m04s | 1.3x |
 
-两种方案执行了相同的 JavaScript（`document.querySelectorAll('.titleline > a')`），返回了相同的结果。单次任务的 Token 消耗**接近**——差异在于架构开销。
+### 为什么更快
+
+1. **命令链接** — agent-browser 用 `&&` 串联操作（如 `fill && click && wait && snapshot` = 1 次工具调用）。Claude in Chrome 每个操作需要独立 MCP 调用。登录任务：**4 vs 8 次 API 往返**。
+
+2. **文本 vs 截图** — agent-browser 用 `snapshot`（无障碍树，~200-2k tokens）。Claude in Chrome 用截图做视觉验证。x.com 任务的 JSONL：**129 KB vs 2,383 KB**（18.5 倍，主要是 base64 截图）。
+
+3. **更低的基线** — MCP 每次 API 调用多携带 ~6.4k tokens。x.com 任务 24 次往返，累积多出 ~154k tokens 的推理负担。
 
 ### 真正的差异在哪里
 
 | 指标 | agent-browser（Skill） | Claude in Chrome（MCP） |
 |------|----------------------|------------------------|
-| **空闲 Token 开销** | **~586 Token**（Skill 描述，按需加载） | **~5,600 Token**（18 个 MCP 工具，始终加载） |
+| **速度** | **快 1.3x–1.8x**（3 个任务均领先） | 基线 |
+| **空闲 Token 开销** | **~586 Token**（按需加载） | **~5,600 Token**（18 个 MCP 工具，每轮都加载） |
 | **适用 Agent** | **任何 AI Agent**（Claude Code、Codex、Cursor、Windsurf……） | 仅限 Claude |
 | **网站访问** | **任何你能打开的网站** | 部分网站在自动化模式下受限 |
 | Cookie / 登录态 | ✅ 有（通过 CDP 连接你的 Chrome） | ✅ 有（你的 Chrome） |

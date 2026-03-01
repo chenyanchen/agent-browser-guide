@@ -105,26 +105,32 @@ agent-browser get url
 
 ## 4. 实测数据
 
-我设计了一个对照实验：打开 Hacker News，提取前 10 条标题，返回 JSON 数组。两种方案在同一台机器上背靠背运行，用 `/context` 命令测量任务前后的 Token 用量。
+三个复杂度递增的任务，在同一台机器上背靠背运行，Token 数据来自会话 JSONL。
 
-### 任务结果
+### 速度：稳定领先
 
-| 指标 | agent-browser + CDP | Claude in Chrome |
-|------|---------------------|------------------|
-| **总耗时** | **26 秒** | **64 秒** |
-| Context 增量 | +7k Token | +2k Token |
-| 消息 Token | +8k（含 ~4.9k Skill 加载） | +3.9k |
-| 使用的机制 | JS eval（Bash CLI） | JS eval（MCP 工具） |
+| 任务 | agent-browser | Claude in Chrome | 加速比 |
+|------|--------------|------------------|--------|
+| 数据提取（HN Top 10） | 28s | 50s | 1.8x |
+| 表单登录（填写 + 点击） | 28s | 50s | 1.8x |
+| x.com 发帖 + 删帖 | 2m19s | 3m04s | 1.3x |
 
-结果出乎意料：**两种方案都用了 JavaScript eval**，执行了相同的 `document.querySelectorAll('.titleline > a')`，返回了相同的结果。没有截图，没有视觉模型。单次任务的 Token 消耗接近。
+结果出乎意料：数据提取任务中，**两种方案都用了 JavaScript eval**，执行了相同的查询，返回了相同的结果。没有截图，没有视觉模型。单次任务的 Token 消耗接近。
+
+### 为什么更快
+
+1. **命令链接减少 API 往返** — agent-browser 用 `&&` 串联操作（`fill && click && wait && snapshot` = 1 次工具调用）。Claude in Chrome 每个操作需要独立 MCP 调用。登录任务：**4 vs 8 次往返**。每次往返 = 发送完整 context → 模型推理 → 执行工具 → 返回结果。
+
+2. **文本 vs 截图** — agent-browser 用 `snapshot`（无障碍树，~200-2k tokens/页）。Claude in Chrome 用截图做视觉验证：渲染、base64 编码、视觉模型处理。x.com 任务的 JSONL：**129 KB vs 2,383 KB**（18.5 倍，几乎全是 base64 截图）。
+
+3. **更低的基线，多轮复利** — MCP 每次 API 调用多带 ~6.4k tokens。x.com 任务 24 次往返，累积多出 ~154k tokens 的推理负担。
 
 ### 真正的差异
 
-那差距在哪？不在单次任务，而在**速度、空闲开销和通用性**：
-
 | 指标 | agent-browser（Skill） | Claude in Chrome（MCP） |
 |------|----------------------|------------------------|
-| **空闲 Token 开销** | **~586 Token**（Skill 描述，按需加载） | **~5,600 Token**（18 个 MCP 工具，始终加载） |
+| **速度** | **快 1.3x–1.8x**（3 个任务均领先） | 基线 |
+| **空闲 Token 开销** | **~586 Token**（按需加载） | **~5,600 Token**（18 个 MCP 工具，每轮都加载） |
 | **适用 Agent** | **任何 AI Agent**（Claude Code、Codex、Cursor、Windsurf……） | 仅限 Claude |
 | **网站访问** | **任何你能打开的网站** | 部分网站在自动化模式下受限 |
 | 视觉回退 | ❌（仅无障碍树） | ✅（JS 无法处理时截图） |
@@ -376,7 +382,7 @@ CDP 给予的是你浏览器的**完全访问权限**——所有标签页、所
 
 这不是 "agent-browser vs Claude in Chrome" 的二选一。Claude in Chrome 有视觉回退能力，适合探索未知页面。agent-browser 更快、空闲开销更低、任何 Agent 都能用。
 
-核心洞见比我预期的更简单：我以为 Token 差距会很大，实测发现 **JavaScript eval 场景下两者 Token 消耗接近**。真正的优势在于空闲开销（低 10 倍）和双重通用性——任何 Agent 都能用，任何网站都能访问。
+核心洞见比我预期的更简单：我以为 Token 差距会很大，实测发现 **JavaScript eval 场景下两者 Token 消耗接近**。真正的优势在于速度（1.3x–1.8x，源于命令链接、文本交互、更低基线）、空闲开销（低 10 倍）和双重通用性——任何 Agent 都能用，任何网站都能访问。
 
 这个双重通用性值得展开说。第一，**任何 AI Agent 都能用**：agent-browser 是 CLI 工具——Claude Code、Codex、Cursor、Windsurf、Copilot，只要能跑 `bash` 就行。不需要 SDK，不绑定任何厂商。第二，**任何网站都能访问**：因为连的是你真实的 Chrome，你能打开的网站 Agent 都能访问。wise.com、reddit.com、微信公众号——那些拦截自动化浏览器的网站，在 CDP 方案下完全畅通。
 

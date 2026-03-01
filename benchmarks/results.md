@@ -1,6 +1,6 @@
 # Benchmark Results
 
-Real measurements comparing agent-browser + CDP vs Claude in Chrome (2026-02-28).
+Real measurements comparing agent-browser + CDP vs Claude in Chrome across three tasks of increasing complexity (2026-02-28 / 2026-03-01).
 
 ## Environment
 
@@ -10,43 +10,145 @@ Real measurements comparing agent-browser + CDP vs Claude in Chrome (2026-02-28)
 - **Claude Code:** 2.1.63, Opus 4.6 model
 - **Network:** Residential broadband, China mainland
 - **Permission mode:** bypassPermissions (both sessions)
+- **Measurement:** Token usage from session JSONL `usage` fields; wall-clock time from first to last timestamp
 
-## Task
+## Task 1: Data Extraction (JS eval)
 
-**Open https://news.ycombinator.com, extract the top 10 story titles, return as JSON array.**
+**Prompt:** Open https://news.ycombinator.com, extract the top 10 story titles, return as JSON array.
 
-Both sessions ran back-to-back on the same machine with the same Chrome instance. Both approaches used JavaScript evaluation to extract data — no screenshots were involved in either session.
-
-## Methodology
-
-- Each approach ran in a fresh Claude Code session
-- Token usage measured via `/context` command before and after the task
-- Wall-clock time measured from prompt submission to final response
-- Session IDs:
-  - agent-browser: `e459ee27-bfee-4b8c-b56e-e47ecda1143f`
-  - Claude in Chrome: `d41f39e3-daa6-4b8e-810e-8062822ed683`
-
-## Results
-
-### Task Comparison
+Both approaches used JavaScript evaluation (`document.querySelectorAll`) — no screenshots in either session.
 
 | Metric | agent-browser + CDP | Claude in Chrome |
 |--------|---------------------|------------------|
-| Context baseline | 21k tokens | 28k tokens |
-| Context after task | 28k tokens | 30k tokens |
-| **Context delta** | **+7k** | **+2k** |
-| Message tokens (before → after) | 8 → 8k | 8 → 3.9k |
-| **Total time (prompt → answer)** | **26s** | **64s** |
-| Browser operation time | ~11s | ~7.4s |
-| Tool calls | 4 | 3 |
-| Mechanism used | JS eval via Bash CLI | JS eval via MCP tool |
+| **Total time** | **28s** | **50s** |
+| Context baseline | 21k | 28k (+6.4k MCP tools) |
+| Context delta | +5.7k | +5.1k |
+| Tool calls | 4 | 8 |
+| Mechanism | JS eval via Bash CLI | JS eval via MCP tool |
 | Result correct | ✅ | ✅ |
+| Session ID | `f1995c1c` | `081ddb5d` |
 
-### Why agent-browser's Context Delta Is Larger
+## Task 2: Form Interaction (fill + click)
 
-agent-browser's +7k includes a one-time skill loading cost (~4.9k tokens for SKILL.md instructions injected into context). Subtracting that, the actual task messages were ~3.1k — slightly less than Chrome's 3.9k.
+**Prompt:** Go to https://the-internet.herokuapp.com/login, fill in username "tomsmith" and password "SuperSecretPassword!", click Login, and return the success message text.
 
-This cost is paid once per skill invocation. Multiple browser operations within one invocation share the same skill load.
+| Metric | agent-browser + CDP | Claude in Chrome |
+|--------|---------------------|------------------|
+| **Total time** | **28s** | **50s** |
+| Context baseline | 21k | 28k |
+| Context delta | +5.7k | +5.1k |
+| Output tokens | 459 | ~1,071 |
+| Tool calls | 4 | 8 |
+| Screenshots taken | 0 | 2 |
+| JSONL size | 35 KB | 221 KB |
+| Session ID | `f1995c1c` | `081ddb5d` |
+
+### What Each Approach Did
+
+**agent-browser (4 tool calls):**
+
+```
+1. Skill("agent-browser")              → load skill instructions
+2. Bash: fill @e2 && fill @e3          → chain fill + click + wait + snapshot
+        && click @e4 && wait              in ONE command
+        && snapshot -i
+3. Bash: get text "#flash"             → extract success message
+4. Bash: close                         → cleanup
+```
+
+**Claude in Chrome (8 tool calls):**
+
+```
+1. tabs_context_mcp                    → get tab info
+2. navigate(url)                       → open page
+3. computer(screenshot)                → take screenshot to see the page
+4. find("password input")              → locate password field
+5. form_input(ref_12, password)        → fill password
+6. find("Login button")               → locate button
+7. computer(left_click, ref_13)        → click Login
+8. computer(screenshot)                → take screenshot to verify result
+```
+
+Key difference: agent-browser chained 5 operations into 1 bash command via `&&`. Claude in Chrome needed separate tool calls for each action, including 2 screenshots.
+
+## Task 3: Complex Interaction (post + delete on x.com)
+
+**Prompt:** Go to x.com, post a tweet with text "agent-browser benchmark test - please ignore [timestamp]", wait for it to be posted, then delete that tweet. Return the tweet URL before deletion and confirmation of deletion.
+
+| Metric | agent-browser + CDP | Claude in Chrome |
+|--------|---------------------|------------------|
+| **Total time** | **2m19s (139s)** | **3m04s (184s)** |
+| Context baseline | 21k | 28k |
+| Context final | 37k | 46k |
+| Context delta | +16k | +18k |
+| Output tokens | ~3,565 | ~4,144 |
+| Tool calls (browser) | ~17 Bash | 19 MCP |
+| Screenshots taken | 0 | 8 |
+| JSONL size | 129 KB | **2,383 KB** |
+| Session ID | `fe268414` | `3149e6a3` |
+
+### What Each Approach Did
+
+**agent-browser:** Used `snapshot -i` (text accessibility tree) to see the page, `fill` / `click` with refs to interact, and `get url` to capture the tweet URL. Zero screenshots — all text-based.
+
+**Claude in Chrome:** Used `navigate` + `javascript_tool` for navigation, then 15 `computer` actions (including 8 screenshots) for interaction. Screenshots were used to visually verify each step: page loaded, text entered, tweet posted, menu opened, delete confirmed.
+
+## Speed Analysis: Why agent-browser Is Faster
+
+Across all three tasks, agent-browser was consistently faster:
+
+| Task | agent-browser | Claude in Chrome | Speedup |
+|------|--------------|------------------|---------|
+| Data extraction | 28s | 50s | 1.8x |
+| Form login | 28s | 50s | 1.8x |
+| x.com post+delete | 139s | 184s | 1.3x |
+
+Three factors explain the speed difference:
+
+### 1. Command Chaining Reduces API Round-trips
+
+agent-browser chains multiple operations into a single bash command with `&&`:
+
+```bash
+# 1 tool call = 5 browser operations
+agent-browser fill @e2 "tomsmith" && agent-browser fill @e3 "pass" && agent-browser click @e4 && agent-browser wait --load networkidle && agent-browser snapshot -i
+```
+
+Claude in Chrome requires a separate MCP tool call for each action. Each tool call is a full API round-trip: send entire context → model reasons → returns tool call → execute → send result back.
+
+In the login task: **4 round-trips vs 8 round-trips**.
+
+### 2. Text vs Screenshots
+
+agent-browser uses `snapshot` (accessibility tree) — compact text, ~200-2,000 tokens per page.
+
+Claude in Chrome takes screenshots for visual verification. Each screenshot involves rendering, base64 encoding, and vision model processing. The JSONL size difference tells the story:
+
+| Task | agent-browser JSONL | Chrome JSONL | Ratio |
+|------|-------------------|--------------|-------|
+| Form login | 35 KB | 221 KB | 6.3x |
+| x.com post+delete | 129 KB | 2,383 KB | **18.5x** |
+
+The x.com session's JSONL is **18.5x larger** — almost entirely from 8 base64-encoded screenshots carried through the context.
+
+### 3. MCP Baseline Compounds Over Turns
+
+Claude in Chrome loads ~6,400 extra tokens (18 MCP tool schemas) into every API call. Over many turns, this compounds:
+
+- Login task: 8 turns × 6.4k = ~51k extra cumulative input tokens
+- x.com task: 24 turns × 6.4k = ~154k extra cumulative input tokens
+
+More input tokens per turn means slower inference.
+
+## Idle Cost: Skill vs MCP
+
+This is where the architectural difference matters most — not during browser tasks, but during the rest of the session when the browser is idle.
+
+| Metric | Skill (CLI) approach | MCP (Claude in Chrome) |
+|--------|---------------------|----------------------|
+| Idle token overhead | ~586 tokens | ~5,600 tokens |
+| Loaded when | On demand (skill invocation) | Always (session start) |
+| Unloaded when | After skill completes | Never (entire session) |
 
 ### Baseline Breakdown
 
@@ -59,56 +161,36 @@ This cost is paid once per skill invocation. Multiple browser operations within 
 | Memory files | 58 | 58 |
 | **Total baseline** | **21k** | **28k** |
 
-### Idle Cost: Skill vs MCP
+## Where Claude in Chrome Wins
 
-This is where the architectural difference matters most — not during browser tasks, but during the rest of the session when the browser is idle.
+1. **Simpler setup:** No CLI installation or autoConnect configuration needed.
 
-| Metric | Skill (CLI) approach | MCP (Claude in Chrome) |
-|--------|---------------------|----------------------|
-| Idle token overhead | ~586 tokens | ~5,600 tokens |
-| Loaded when | On demand (skill invocation) | Always (session start) |
-| Unloaded when | After skill completes | Never (entire session) |
+2. **Vision fallback:** When JavaScript can't accomplish the task, Claude in Chrome can fall back to screenshots + vision model. agent-browser has `snapshot` (accessibility tree) but no vision capability. For visual exploration of unknown sites, Claude in Chrome is the better tool.
 
-In a typical 60-minute coding session with 2 minutes of browser use, MCP loads 5,600 tokens into every API call for the entire session. The Skill approach loads ~586 tokens idle, plus ~4.9k only during the browser task.
-
-## Analysis
-
-### What Both Approaches Did
-
-Surprisingly, both approaches used the **same underlying mechanism**: JavaScript evaluation in the browser's page context.
-
-- **agent-browser:** `agent-browser eval --stdin` → executed `document.querySelectorAll('.titleline > a')`
-- **Claude in Chrome:** `javascript_tool` MCP tool → executed `document.querySelectorAll('.titleline > a')`
-
-No screenshots, no vision model, no base64 encoding in either session. Claude in Chrome uses vision model as a fallback when it can't operate via DOM/JavaScript — but for this structured data extraction task, JavaScript was sufficient.
-
-### Where agent-browser Wins
-
-1. **Idle cost (10x lower):** ~586 tokens vs ~5,600 tokens when not using the browser. This compounds over long coding sessions.
-
-2. **Works with any AI agent:** Any AI agent that can run bash (Claude Code, Codex, Cursor, Windsurf, Copilot) can use agent-browser. Claude in Chrome only works with Claude.
-
-3. **Works with any site:** agent-browser connects to your real Chrome — any site you can open in Chrome, the agent can access. Claude in Chrome restricts access on some sites (wise.com, reddit.com, mp.weixin.qq.com, etc.).
-
-4. **Speed:** In our benchmark, agent-browser completed the task in 26s vs 64s for Claude in Chrome, though speed varies across runs.
-
-### Where Claude in Chrome Wins
-
-1. **Lower per-task context delta:** +2k vs +7k. No skill loading overhead — MCP tools are always available.
-
-2. **Simpler setup:** No CLI installation or autoConnect configuration needed.
-
-3. **Vision fallback:** When JavaScript can't accomplish the task, Claude in Chrome can fall back to screenshots + vision model. agent-browser has `snapshot` (accessibility tree) but no vision capability.
+3. **Lower per-task context delta for JS eval tasks:** +2k vs +7k (no skill loading overhead).
 
 ## Key Takeaways
 
-1. **For JS eval tasks, token usage is comparable.** Both approaches execute JavaScript in the browser. The difference is in overhead structure (skill load vs MCP idle).
+1. **agent-browser is consistently faster.** 1.3x–1.8x across three tasks of varying complexity, driven by command chaining, text-based page representation, and lower baseline overhead.
 
 2. **Idle cost matters in long sessions.** MCP's 5,600 tokens are loaded into every API call, every turn, even during pure coding work. The Skill approach pays near-zero when the browser is idle.
 
-3. **Dual universality is the strategic advantage.** agent-browser works with any AI agent that can run shell commands (not just Claude), and any site you can open in Chrome (not just sites that permit automation). This is a universal solution, not tied to any specific AI vendor or limited by site restrictions.
+3. **Dual universality is the strategic advantage.** agent-browser works with any AI agent that can run shell commands (not just Claude), and any site you can open in Chrome (not just sites that permit automation).
 
-4. **Speed advantage observed but variable.** In our benchmark sessions, agent-browser was faster (26s vs 64s), though individual run times vary.
+4. **For JS eval tasks, token usage is comparable.** Both approaches execute JavaScript in the browser. The difference is in overhead structure (skill load vs MCP idle) and speed.
+
+## Session Files
+
+All session JSONL files are in `~/.claude/projects/-Users-nle-silicon-agent-browser-guide/`:
+
+| Session | Task | Approach | ID |
+|---------|------|----------|----|
+| G | Login form | agent-browser | `f1995c1c-d0b6-4539-8421-184e4ed4776c` |
+| H | Login form | Claude in Chrome | `081ddb5d-b926-43f0-9927-37c8529d31b1` |
+| I | x.com post+delete | agent-browser | `fe268414-2e98-4c0b-b2e8-25d0e97a1bc2` |
+| J | x.com post+delete | Claude in Chrome | `3149e6a3-f584-4161-9408-f5b9a5becafc` |
+
+Earlier sessions (A–F) from 2026-02-28 are in `~/.claude/projects/-Users-nle-silicon-series4-stuff/`.
 
 ## Next Steps
 

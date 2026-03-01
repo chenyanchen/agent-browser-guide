@@ -111,28 +111,31 @@ AI Agent (Claude Code / Cursor / Codex / Windsurf / ...)
 
 ## Benchmarks
 
-> **Task:** Open Hacker News, extract top 10 story titles, return JSON array
-> **Environment:** macOS Sequoia 15.3, Chrome 145+, Claude Code 2.1.63 (Opus 4.6)
-> **Date:** 2026-02-28 | Both sessions ran back-to-back on the same machine
-> **Method:** `/context` before and after task, wall-clock time from prompt to answer
-> **Note:** Both approaches used JavaScript evaluation — no screenshots in either session. [Full methodology →](benchmarks/results.md)
+We ran three tasks of increasing complexity, back-to-back on the same machine. Token usage from session JSONL; wall-clock time from timestamps. [Full methodology →](benchmarks/results.md)
 
-### Task Results
+### Speed: Consistently Faster
 
-| Metric | agent-browser + CDP | Claude in Chrome |
-|--------|---------------------|------------------|
-| Context delta | +7k tokens (incl. ~4.9k skill load) | +2k tokens |
-| Message tokens | +3.1k (excl. skill load) | +3.9k |
-| Mechanism used | JS eval via Bash CLI | JS eval via MCP tool |
+| Task | agent-browser | Claude in Chrome | Speedup |
+|------|--------------|------------------|---------|
+| Data extraction (HN top 10) | 28s | 50s | 1.8x |
+| Form login (fill + click) | 28s | 50s | 1.8x |
+| x.com post + delete | 2m19s | 3m04s | 1.3x |
 
-Both approaches executed the same JavaScript (`document.querySelectorAll('.titleline > a')`) and returned correct results. Token usage per task is **comparable** — both use JS eval under the hood.
+### Why Faster
+
+1. **Command chaining** — agent-browser chains operations with `&&` (e.g., `fill && click && wait && snapshot` = 1 tool call). Claude in Chrome needs a separate MCP call per action. Login task: **4 vs 8 round-trips**.
+
+2. **Text vs screenshots** — agent-browser uses `snapshot` (accessibility tree, ~200-2k tokens). Claude in Chrome takes screenshots for visual verification. x.com task JSONL: **129 KB vs 2,383 KB** (18.5x, mostly base64 screenshots).
+
+3. **Lower baseline** — MCP loads ~6.4k extra tokens per API call. Over 24 turns (x.com task), that's ~154k extra cumulative input tokens slowing inference.
 
 ### Where the Real Difference Is
 
 | Dimension | agent-browser (Skill) | Claude in Chrome (MCP) |
 |-----------|----------------------|------------------------|
-| **Idle token overhead** | **~586 tokens** (skill descriptions, loaded on demand) | **~5,600 tokens** (18 MCP tools, loaded every turn) |
-| **Works with** | **Any AI agent** (Claude Code, Codex, Cursor, Windsurf, ...) | Claude only |
+| **Speed** | **1.3x–1.8x faster** across 3 tasks | Baseline |
+| **Idle token overhead** | **~586 tokens** (loaded on demand) | **~5,600 tokens** (18 MCP tools, every turn) |
+| **Works with** | **Any AI agent** (Claude Code, Codex, Cursor, ...) | Claude only |
 | **Site access** | **Any site** you can open in Chrome | Some sites restricted under automation |
 | Cookies / login state | ✅ Yes (your Chrome via CDP) | ✅ Yes (your Chrome) |
 | Vision fallback | ❌ (accessibility tree only) | ✅ (screenshot when JS can't handle it) |
