@@ -1,6 +1,6 @@
 # Connect AI Agents to Your Real Chrome via CDP
 
-> Use [agent-browser](https://github.com/vercel-labs/agent-browser) + Chrome DevTools Protocol to give AI agents access to your browser's cookies, login sessions, and extensions — 2.5x faster, with lower idle overhead, and works with any AI agent.
+> Use [agent-browser](https://github.com/vercel-labs/agent-browser) + Chrome DevTools Protocol to give AI agents access to your browser's cookies, login sessions, and extensions — with lower idle overhead, and works with **any AI agent** on **any site**.
 
 [中文版](README.zh-CN.md)
 
@@ -121,21 +121,19 @@ AI Agent (Claude Code / Cursor / Codex / Windsurf / ...)
 
 | Metric | agent-browser + CDP | Claude in Chrome |
 |--------|---------------------|------------------|
-| **Total time** | **26s** | **64s** |
-| Context delta | +7k tokens | +2k tokens |
-| Message tokens | +8k (incl. ~4.9k skill load) | +3.9k |
-| Browser ops time | ~11s | ~7.4s |
+| Context delta | +7k tokens (incl. ~4.9k skill load) | +2k tokens |
+| Message tokens | +3.1k (excl. skill load) | +3.9k |
 | Mechanism used | JS eval via Bash CLI | JS eval via MCP tool |
 
-Both approaches executed the same JavaScript (`document.querySelectorAll('.titleline > a')`) and returned identical results. Token usage per task is **comparable** — the difference is in overhead structure.
+Both approaches executed the same JavaScript (`document.querySelectorAll('.titleline > a')`) and returned correct results. Token usage per task is **comparable** — both use JS eval under the hood.
 
 ### Where the Real Difference Is
 
-| Metric | agent-browser (Skill) | Claude in Chrome (MCP) |
-|--------|----------------------|------------------------|
-| **Speed** | **2.5x faster** (26s vs 64s) | Baseline |
-| **Idle token overhead** | **~586 tokens** (skill descriptions) | **~5,600 tokens** (18 MCP tools, always loaded) |
-| **Portability** | **Any agent** (Claude Code, Codex, Cursor, Windsurf, ...) | Claude only |
+| Dimension | agent-browser (Skill) | Claude in Chrome (MCP) |
+|-----------|----------------------|------------------------|
+| **Idle token overhead** | **~586 tokens** (skill descriptions, loaded on demand) | **~5,600 tokens** (18 MCP tools, loaded every turn) |
+| **Works with** | **Any AI agent** (Claude Code, Codex, Cursor, Windsurf, ...) | Claude only |
+| **Site access** | **Any site** you can open in Chrome | Some sites restricted under automation |
 | Cookies / login state | ✅ Yes (your Chrome via CDP) | ✅ Yes (your Chrome) |
 | Vision fallback | ❌ (accessibility tree only) | ✅ (screenshot when JS can't handle it) |
 

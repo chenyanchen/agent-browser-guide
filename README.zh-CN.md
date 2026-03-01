@@ -1,6 +1,6 @@
 # 通过 CDP 将 AI Agent 连接到你的真实 Chrome
 
-> 用 [agent-browser](https://github.com/vercel-labs/agent-browser) + Chrome DevTools Protocol，让 AI Agent 使用你浏览器的 Cookie、登录态和扩展——速度快 2.5 倍、空闲开销更低、任何 AI Agent 都能用。
+> 用 [agent-browser](https://github.com/vercel-labs/agent-browser) + Chrome DevTools Protocol，让 AI Agent 使用你浏览器的 Cookie、登录态和扩展——空闲开销更低，**任何 AI Agent** 都能用，**任何网站**都能访问。
 
 [English Version](README.md)
 
@@ -133,9 +133,9 @@ AI Agent（Claude Code / Cursor / Codex / Windsurf / ...）
 
 | 指标 | agent-browser（Skill） | Claude in Chrome（MCP） |
 |------|----------------------|------------------------|
-| **速度** | **快 2.5 倍**（26s vs 64s） | 基线 |
-| **空闲 Token 开销** | **~586 Token**（Skill 描述） | **~5,600 Token**（18 个 MCP 工具，始终加载） |
-| **通用性** | **任何 Agent**（Claude Code、Codex、Cursor、Windsurf……） | 仅限 Claude |
+| **空闲 Token 开销** | **~586 Token**（Skill 描述，按需加载） | **~5,600 Token**（18 个 MCP 工具，始终加载） |
+| **适用 Agent** | **任何 AI Agent**（Claude Code、Codex、Cursor、Windsurf……） | 仅限 Claude |
+| **网站访问** | **任何你能打开的网站** | 部分网站在自动化模式下受限 |
 | Cookie / 登录态 | ✅ 有（通过 CDP 连接你的 Chrome） | ✅ 有（你的 Chrome） |
 | 视觉回退 | ❌（仅无障碍树） | ✅（JS 无法处理时截图） |
 

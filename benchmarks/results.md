@@ -84,11 +84,13 @@ No screenshots, no vision model, no base64 encoding in either session. Claude in
 
 ### Where agent-browser Wins
 
-1. **Speed (2.5x faster):** 26s vs 64s. The browser operations themselves were comparable (~11s vs ~7.4s), but agent-browser had less API roundtrip overhead.
+1. **Idle cost (10x lower):** ~586 tokens vs ~5,600 tokens when not using the browser. This compounds over long coding sessions.
 
-2. **Idle cost (10x lower):** ~586 tokens vs ~5,600 tokens when not using the browser. This compounds over long coding sessions.
+2. **Works with any AI agent:** Any AI agent that can run bash (Claude Code, Codex, Cursor, Windsurf, Copilot) can use agent-browser. Claude in Chrome only works with Claude.
 
-3. **Agent-agnostic:** Any AI agent that can run bash (Claude Code, Codex, Cursor, Windsurf, Copilot) can use agent-browser. Claude in Chrome only works with Claude.
+3. **Works with any site:** agent-browser connects to your real Chrome — any site you can open in Chrome, the agent can access. Claude in Chrome restricts access on some sites (wise.com, reddit.com, mp.weixin.qq.com, etc.).
+
+4. **Speed:** In our benchmark, agent-browser completed the task in 26s vs 64s for Claude in Chrome, though speed varies across runs.
 
 ### Where Claude in Chrome Wins
 
@@ -102,11 +104,11 @@ No screenshots, no vision model, no base64 encoding in either session. Claude in
 
 1. **For JS eval tasks, token usage is comparable.** Both approaches execute JavaScript in the browser. The difference is in overhead structure (skill load vs MCP idle).
 
-2. **Speed is the clearest advantage.** agent-browser completes tasks 2.5x faster.
+2. **Idle cost matters in long sessions.** MCP's 5,600 tokens are loaded into every API call, every turn, even during pure coding work. The Skill approach pays near-zero when the browser is idle.
 
-3. **Idle cost matters in long sessions.** MCP's 5,600 tokens are loaded into every API call, every turn, even during pure coding work. The Skill approach pays near-zero when the browser is idle.
+3. **Dual universality is the strategic advantage.** agent-browser works with any AI agent that can run shell commands (not just Claude), and any site you can open in Chrome (not just sites that permit automation). This is a universal solution, not tied to any specific AI vendor or limited by site restrictions.
 
-4. **Portability is the strategic advantage.** agent-browser works with any AI agent that can run shell commands. This is a universal solution, not tied to any specific AI vendor.
+4. **Speed advantage observed but variable.** In our benchmark sessions, agent-browser was faster (26s vs 64s), though individual run times vary.
 
 ## Next Steps
 

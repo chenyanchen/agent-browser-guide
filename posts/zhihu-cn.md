@@ -1,6 +1,6 @@
 # 用 agent-browser + CDP 连接真实 Chrome：更快、更通用的 AI Agent 浏览器方案
 
-> 把 AI Agent 接到你正在用的 Chrome 上——速度快 2.5 倍、空闲开销低 10 倍、任何 AI Agent 都能用。
+> 把 AI Agent 接到你正在用的 Chrome 上——空闲开销低 10 倍，**任何 AI Agent** 都能用，**任何网站**都能访问。
 
 ---
 
@@ -124,9 +124,9 @@ agent-browser get url
 
 | 指标 | agent-browser（Skill） | Claude in Chrome（MCP） |
 |------|----------------------|------------------------|
-| **速度** | **快 2.5 倍**（26s vs 64s） | 基线 |
-| **空闲 Token 开销** | **~586 Token**（Skill 描述） | **~5,600 Token**（18 个 MCP 工具，始终加载） |
-| **通用性** | **任何 Agent**（Claude Code、Codex、Cursor、Windsurf……） | 仅限 Claude |
+| **空闲 Token 开销** | **~586 Token**（Skill 描述，按需加载） | **~5,600 Token**（18 个 MCP 工具，始终加载） |
+| **适用 Agent** | **任何 AI Agent**（Claude Code、Codex、Cursor、Windsurf……） | 仅限 Claude |
+| **网站访问** | **任何你能打开的网站** | 部分网站在自动化模式下受限 |
 | 视觉回退 | ❌（仅无障碍树） | ✅（JS 无法处理时截图） |
 
 空闲开销的影响在长会话中尤为明显：60 分钟的编码会话中只有 2 分钟用浏览器，MCP 的 5,600 Token 会加载到每一次 API 调用中。Skill 方式空闲时只消耗 ~586 Token。
@@ -376,9 +376,9 @@ CDP 给予的是你浏览器的**完全访问权限**——所有标签页、所
 
 这不是 "agent-browser vs Claude in Chrome" 的二选一。Claude in Chrome 有视觉回退能力，适合探索未知页面。agent-browser 更快、空闲开销更低、任何 Agent 都能用。
 
-核心洞见比我预期的更简单：我以为 Token 差距会很大，实测发现 **JavaScript eval 场景下两者 Token 消耗接近**。真正的优势在于速度（快 2.5 倍）、空闲开销（低 10 倍）和通用性（不绑定任何 AI 厂商）。
+核心洞见比我预期的更简单：我以为 Token 差距会很大，实测发现 **JavaScript eval 场景下两者 Token 消耗接近**。真正的优势在于空闲开销（低 10 倍）和双重通用性——任何 Agent 都能用，任何网站都能访问。
 
-这也是一个**通用方案**。agent-browser 是 CLI 工具——任何能执行 shell 命令的 AI Agent 都可以用它。Claude Code、Codex、Cursor、Windsurf、Copilot——配置方法一模一样。不需要 SDK，只要你的 Agent 能跑 `bash`，它就能操控你的浏览器。
+这个双重通用性值得展开说。第一，**任何 AI Agent 都能用**：agent-browser 是 CLI 工具——Claude Code、Codex、Cursor、Windsurf、Copilot，只要能跑 `bash` 就行。不需要 SDK，不绑定任何厂商。第二，**任何网站都能访问**：因为连的是你真实的 Chrome，你能打开的网站 Agent 都能访问。wise.com、reddit.com、微信公众号——那些拦截自动化浏览器的网站，在 CDP 方案下完全畅通。
 
 如果你的 AI Agent 经常与网页交互——试试 CDP 方案。安装只要 5 分钟，速度优势从第一次操作就能感受到。
 

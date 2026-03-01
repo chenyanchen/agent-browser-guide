@@ -33,9 +33,10 @@ Claude in Chrome's `javascript_tool` ≈ agent-browser's `eval`. For JS-capable 
 
 So where's the win?
 
-1. Speed: 2.5x faster (26s vs 64s)
-2. Idle cost: Skill loads ~586 tokens idle. MCP loads ~5,600 tokens EVERY turn, even when you're just writing code.
-3. Portability: agent-browser is a CLI. Works with ANY agent — Codex, Cursor, Windsurf, Copilot. No vendor lock-in.
+1. Idle cost: Skill loads ~586 tokens idle. MCP loads ~5,600 tokens EVERY turn, even when you're just writing code. 10x difference.
+2. Any agent: agent-browser is a CLI. Works with Codex, Cursor, Windsurf, Copilot — not just Claude. No vendor lock-in.
+3. Any site: Connects to YOUR Chrome, so any site you can open, the agent can access. No more "this site blocks automation."
+4. Speed: 2.5x faster in our benchmark (26s vs 64s).
 
 ---
 
@@ -80,4 +81,4 @@ Full guide with real benchmarks, gotchas, and skill templates:
 
 github.com/chenyanchen/agent-browser-guide
 
-The honest finding: tokens are comparable for JS eval tasks. The real wins are speed (2.5x), idle cost (10x lower), and portability (any agent).
+The honest finding: tokens are comparable for JS eval tasks. The real wins are idle cost (10x lower) and dual universality — any agent, any site.

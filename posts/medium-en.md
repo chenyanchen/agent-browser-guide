@@ -66,11 +66,13 @@ Token usage per task was **comparable**. Claude in Chrome actually used fewer co
 
 ### So Where's the Real Advantage?
 
-**Speed.** agent-browser was 2.5x faster (26s vs 64s). The browser operations were similar (~11s vs ~7s), but agent-browser had less API roundtrip overhead.
-
 **Idle cost.** This is the architectural win. Claude in Chrome loads 18 MCP tools (~5,600 tokens) into every API call for the entire session — even when you're writing code, not using the browser. agent-browser's skill descriptions cost ~586 tokens when idle. That's a 10x difference that compounds over a full coding session.
 
-**Portability.** agent-browser is a CLI tool. Any AI agent that can run bash — Claude Code, Codex, Cursor, Windsurf, Copilot — can use it. Claude in Chrome only works with Claude. This is not a Claude-specific optimization; it's a universal solution.
+**Works with any AI agent.** agent-browser is a CLI tool. Any AI agent that can run bash — Claude Code, Codex, Cursor, Windsurf, Copilot — can use it. Claude in Chrome only works with Claude. This is not a Claude-specific optimization; it's a universal solution.
+
+**Works with any site.** Because agent-browser connects to your real Chrome via CDP, any site you can open in Chrome, the agent can access. Claude in Chrome restricts access on some sites — wise.com, reddit.com, mp.weixin.qq.com all refused to serve pages under its automation.
+
+**Speed.** agent-browser was 2.5x faster in our benchmark (26s vs 64s). The browser operations were similar (~11s vs ~7s), but agent-browser had less API roundtrip overhead.
 
 ### What Claude in Chrome Does Better
 
@@ -351,9 +353,9 @@ This isn't about "agent-browser vs Claude in Chrome." Each tool has its place:
 - **Claude in Chrome**: Best for visual exploration of unknown sites, and tasks where the agent needs to *see* the page. Has a vision fallback that agent-browser lacks.
 - **agent-browser + CDP**: Best for speed, portability, and keeping your context window clean during long coding sessions.
 
-The insight is simpler than I originally thought. I expected a massive token gap. What I found was: **for JavaScript eval tasks, both approaches use comparable tokens**. The real wins are speed (2.5x faster), idle cost (10x lower), and portability (any agent, not just Claude).
+The insight is simpler than I originally thought. I expected a massive token gap. What I found was: **for JavaScript eval tasks, both approaches use comparable tokens**. The real wins are idle cost (10x lower), and dual universality — any agent, not just Claude; any site, not just automation-friendly ones.
 
-That portability point is worth emphasizing. agent-browser is a CLI tool. Any AI agent that can execute shell commands — Claude Code, Codex, Cursor, Windsurf, Copilot — gets the same capabilities with the same setup. No SDK, no vendor lock-in. If your agent can run `bash`, it can control your browser via CDP.
+That universality point is worth emphasizing. agent-browser is a CLI tool. Any AI agent that can execute shell commands — Claude Code, Codex, Cursor, Windsurf, Copilot — gets the same capabilities with the same setup. No SDK, no vendor lock-in. And because it connects to your real Chrome, any site you can access manually, your agent can access too. No more "this site blocks automated browsers."
 
 The tools are maturing fast. A year ago, giving an AI agent browser access meant Puppeteer scripts and fragile selectors. Today, agent-browser gives you a clean CLI that connects to your real Chrome in one line.
 
